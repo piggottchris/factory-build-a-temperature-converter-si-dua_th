@@ -61,14 +61,14 @@ N/A for a pure test PR — no additional runtime observability hooks needed beyo
 is already in place.
 
 ## Success Criteria
-- [ ] `pnpm test:a11y` (vitest `--project a11y` or `--reporter` filter) exits 0
-- [ ] `axe-core` installed as a dev dependency
-- [ ] `frontend/tests/a11y.test.ts` exists and covers the three axe states
-- [ ] Debounce assertion uses `vi.useFakeTimers()` and 400 ms threshold
-- [ ] `#sr-result` populated with Fahrenheit + Kelvin after debounce fires
-- [ ] `frontend/lib/temperature-widget.ts` exists and is imported by the test
-- [ ] Zero existing tests broken (`pnpm test` still green)
-- [ ] No uv, no OpenAI, no @ai_function — all CLAUDE.md conventions respected
+- [x] `pnpm test:a11y` (vitest `--project a11y` or `--reporter` filter) exits 0
+- [x] `axe-core` installed as a dev dependency
+- [x] `frontend/tests/a11y.test.ts` exists and covers the three axe states
+- [x] Debounce assertion uses `vi.useFakeTimers()` and 400 ms threshold
+- [x] `#sr-result` populated with Fahrenheit + Kelvin after debounce fires
+- [x] `frontend/lib/temperature-widget.ts` exists and is imported by the test
+- [x] Zero existing tests broken (`pnpm test` still green)
+- [x] No uv, no OpenAI, no @ai_function — all CLAUDE.md conventions respected
 
 ## Known Limitations
-_None at this time._
+_None — all acceptance criteria satisfied as of Pass 5 (2026-05-12)._
