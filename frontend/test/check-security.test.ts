@@ -166,6 +166,42 @@ describe("checkSRI", () => {
     // JSON script blocks carry no src, so SRI check does not apply to them
     expect(() => checkSRI(html)).not.toThrow();
   });
+
+  it("throws when integrity is sha384- with an empty hash (malformed placeholder)", () => {
+    // integrity="sha384-" has no base64 content — the browser would reject this
+    // asset, but without this check the CI gate would silently pass.
+    const html = `<html><body>
+      <script src="bundle.js" integrity="sha384-" crossorigin="anonymous"></script>
+    </body></html>`;
+    expect(() => checkSRI(html)).toThrow();
+  });
+
+  it("throws when integrity has sha384- prefix but a too-short hash value", () => {
+    // sha384 encodes to exactly 64 base64 chars; "abc" is not a valid hash.
+    const html = `<html><body>
+      <script src="bundle.js" integrity="sha384-abc" crossorigin="anonymous"></script>
+    </body></html>`;
+    expect(() => checkSRI(html)).toThrowError(/sha384/i);
+  });
+
+  it("throws when integrity has sha384- prefix but hash contains invalid base64 characters", () => {
+    // '=' padding is not expected in a 48-byte (sha384) output because 48 % 3 === 0.
+    // Characters outside [A-Za-z0-9+/] signal a malformed or truncated hash.
+    const paddedHash = "sha384-" + "A".repeat(63) + "=";
+    const html = `<html><body>
+      <script src="bundle.js" integrity="${paddedHash}" crossorigin="anonymous"></script>
+    </body></html>`;
+    expect(() => checkSRI(html)).toThrow();
+  });
+
+  it("passes when integrity contains a correctly-formed 64-char base64 sha384 hash", () => {
+    // 64 standard-base64 characters after the prefix — structurally valid.
+    const validHash = "sha384-" + "oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC";
+    const html = `<html><body>
+      <script src="bundle.js" integrity="${validHash}" crossorigin="anonymous"></script>
+    </body></html>`;
+    expect(() => checkSRI(html)).not.toThrow();
+  });
 });
 
 // ─── checkSecurityHeaders ────────────────────────────────────────────────────

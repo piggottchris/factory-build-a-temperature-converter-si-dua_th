@@ -199,13 +199,22 @@ function checkCSP(headersContent) {
 // (_assertSRIAttributes, _readArtefact — not exported, used by check functions and run())
 
 /**
+ * A sha384 hash encodes 48 bytes as standard base64 (no padding needed since
+ * 48 % 3 === 0), yielding exactly 64 characters from the alphabet [A-Za-z0-9+/].
+ * Requiring this exact format prevents the CI check from silently accepting a
+ * malformed placeholder such as integrity="sha384-" or integrity="sha384-abc".
+ */
+const SHA384_INTEGRITY_RE = /^sha384-[A-Za-z0-9+/]{64}$/;
+
+/**
  * Assert that an HTML element carries a valid SRI integrity attribute and
  * crossorigin="anonymous".
  *
  * @param {Element} el   - The DOM element to inspect.
  * @param {string}  desc - Human-readable description used in error messages.
- * @throws {Error} If integrity is missing, does not start with "sha384-", or
- *                 crossorigin is not "anonymous".
+ * @throws {Error} If integrity is missing, does not match the sha384 format
+ *                 (prefix + exactly 64 standard-base64 chars), or crossorigin
+ *                 is not "anonymous".
  */
 function _assertSRIAttributes(el, desc) {
   const integrity = el.getAttribute('integrity');
@@ -215,10 +224,12 @@ function _assertSRIAttributes(el, desc) {
       'Add integrity="sha384-<hash>" to enable Subresource Integrity.'
     );
   }
-  if (!integrity.startsWith('sha384-')) {
+  if (!SHA384_INTEGRITY_RE.test(integrity)) {
     throw new Error(
-      `[sri] ${desc} has integrity="${integrity}" which does not use sha384. ` +
-      'Only sha384 hashes are accepted (e.g. integrity="sha384-<base64>").'
+      `[sri] ${desc} has integrity="${integrity}" which is not a valid sha384 hash. ` +
+      'The value must be "sha384-" followed by exactly 64 standard-base64 characters ' +
+      '(e.g. integrity="sha384-<base64>"). Generate it with: ' +
+      'openssl dgst -sha384 -binary <file> | openssl base64 -A'
     );
   }
   const crossorigin = el.getAttribute('crossorigin');
