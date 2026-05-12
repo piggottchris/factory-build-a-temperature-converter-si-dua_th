@@ -2,10 +2,19 @@
  * Temperature-converter utility: parser, math helpers, and formatter.
  *
  * Parser classifies a raw string into one of four states:
- *   - empty   : blank or whitespace-only input
- *   - pending : incomplete but syntactically plausible (user still typing)
- *   - valid   : a complete, in-range number
- *   - invalid : bad format or out-of-range value
+ *   - empty   : blank or whitespace-only input — field is untouched, show no
+ *               validation message.
+ *   - pending : syntactically incomplete but plausible — the user is mid-entry
+ *               (e.g. they have typed "-" and are about to add digits). UI
+ *               should remain neutral: show neither a green valid indicator nor
+ *               a red error. Triggering an error on these states would cause
+ *               distracting flash-of-invalid as the user types.
+ *   - valid   : a complete, in-range number — safe to pass to math helpers and
+ *               the formatter.
+ *   - invalid : bad format or out-of-range value — show an error message.
+ *
+ * Use the exported type guards (`isValidResult`, `isPendingResult`, etc.) for
+ * concise, type-safe narrowing in component code.
  */
 
 // ---------------------------------------------------------------------------
@@ -17,6 +26,49 @@ export type ParseResult =
   | { status: "pending" }
   | { status: "valid"; value: number }
   | { status: "invalid"; reason: "format" | "range" };
+
+// ---------------------------------------------------------------------------
+// Type guards
+// ---------------------------------------------------------------------------
+
+/**
+ * Narrows a `ParseResult` to the `empty` variant.
+ * Use this to decide whether to hide all validation UI entirely.
+ */
+export function isEmptyResult(r: ParseResult): r is { status: "empty" } {
+  return r.status === "empty";
+}
+
+/**
+ * Narrows a `ParseResult` to the `pending` variant.
+ * Use this to keep the input field in a neutral (non-error, non-success) state
+ * while the user is still typing an incomplete number such as "-" or "1.".
+ */
+export function isPendingResult(r: ParseResult): r is { status: "pending" } {
+  return r.status === "pending";
+}
+
+/**
+ * Narrows a `ParseResult` to the `valid` variant, giving typed access to
+ * `result.value`.  Only `valid` results carry a numeric value safe for
+ * conversion and formatting.
+ */
+export function isValidResult(
+  r: ParseResult
+): r is { status: "valid"; value: number } {
+  return r.status === "valid";
+}
+
+/**
+ * Narrows a `ParseResult` to the `invalid` variant, giving typed access to
+ * `result.reason` ("format" | "range").  Use `reason` to choose the right
+ * user-facing error message.
+ */
+export function isInvalidResult(
+  r: ParseResult
+): r is { status: "invalid"; reason: "format" | "range" } {
+  return r.status === "invalid";
+}
 
 // ---------------------------------------------------------------------------
 // Constants

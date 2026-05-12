@@ -8,6 +8,10 @@ import {
   celsiusToFahrenheit,
   celsiusToKelvin,
   formatNumber,
+  isEmptyResult,
+  isPendingResult,
+  isValidResult,
+  isInvalidResult,
 } from "../lib/convert";
 
 // ---------------------------------------------------------------------------
@@ -200,5 +204,74 @@ describe("formatNumber", () => {
 
   it("throws TypeError for NaN", () => {
     expect(() => formatNumber(NaN)).toThrow(TypeError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Type guards
+// ---------------------------------------------------------------------------
+
+describe("isEmptyResult", () => {
+  it("returns true for an empty-status result", () => {
+    expect(isEmptyResult({ status: "empty" })).toBe(true);
+  });
+
+  it("returns false for a non-empty result", () => {
+    expect(isEmptyResult({ status: "pending" })).toBe(false);
+    expect(isEmptyResult({ status: "valid", value: 0 })).toBe(false);
+    expect(isEmptyResult({ status: "invalid", reason: "format" })).toBe(false);
+  });
+});
+
+describe("isPendingResult", () => {
+  it("returns true for a pending-status result (user still typing)", () => {
+    expect(isPendingResult({ status: "pending" })).toBe(true);
+  });
+
+  it("returns false for a non-pending result", () => {
+    expect(isPendingResult({ status: "empty" })).toBe(false);
+    expect(isPendingResult({ status: "valid", value: 42 })).toBe(false);
+    expect(isPendingResult({ status: "invalid", reason: "range" })).toBe(false);
+  });
+});
+
+describe("isValidResult", () => {
+  it("returns true for a valid-status result and narrows type to include value", () => {
+    const result = parseTemperature("100");
+    expect(isValidResult(result)).toBe(true);
+    if (isValidResult(result)) {
+      // TypeScript would error here if narrowing didn't work — value must be accessible
+      expect(result.value).toBe(100);
+    }
+  });
+
+  it("returns false for a non-valid result", () => {
+    expect(isValidResult({ status: "empty" })).toBe(false);
+    expect(isValidResult({ status: "pending" })).toBe(false);
+    expect(isValidResult({ status: "invalid", reason: "format" })).toBe(false);
+  });
+});
+
+describe("isInvalidResult", () => {
+  it("returns true for an invalid-status result and narrows type to include reason", () => {
+    const result = parseTemperature("abc");
+    expect(isInvalidResult(result)).toBe(true);
+    if (isInvalidResult(result)) {
+      // TypeScript would error here if narrowing didn't work — reason must be accessible
+      expect(result.reason).toBe("format");
+    }
+  });
+
+  it("differentiates between format and range reasons", () => {
+    const formatResult = parseTemperature("abc");
+    const rangeResult = parseTemperature("1500000");
+    expect(isInvalidResult(formatResult) && formatResult.reason).toBe("format");
+    expect(isInvalidResult(rangeResult) && rangeResult.reason).toBe("range");
+  });
+
+  it("returns false for a non-invalid result", () => {
+    expect(isInvalidResult({ status: "empty" })).toBe(false);
+    expect(isInvalidResult({ status: "pending" })).toBe(false);
+    expect(isInvalidResult({ status: "valid", value: 0 })).toBe(false);
   });
 });
