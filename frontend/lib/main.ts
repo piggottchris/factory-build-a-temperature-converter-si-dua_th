@@ -26,6 +26,7 @@ import {
   isPendingResult,
   isValidResult,
   isInvalidResult,
+  MAX_LENGTH,
 } from "./convert";
 
 // ---------------------------------------------------------------------------
@@ -73,6 +74,11 @@ export function init(): void {
   ) as HTMLElement;
   const kelvinOutput = document.getElementById("kelvin-output") as HTMLElement;
   const contextLine = document.getElementById("context-line") as HTMLElement;
+
+  // Enforce the parser's length cap at the browser level so arbitrarily long
+  // pastes are truncated before they ever reach parseTemperature().
+  // MAX_LENGTH is the same constant used by the parser, keeping the two in sync.
+  input.maxLength = MAX_LENGTH;
 
   // Per-instance state — lives in the closure, never leaks between init() calls.
   let lastValidF = "";

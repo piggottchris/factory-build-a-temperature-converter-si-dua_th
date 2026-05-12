@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { init, FORMAT_ERROR_MSG, RANGE_ERROR_MSG } from "../lib/main";
+import { MAX_LENGTH } from "../lib/convert";
 
 // ---------------------------------------------------------------------------
 // HTML fixture — mirrors the structure expected by lib/main.ts
@@ -307,5 +308,24 @@ describe("dom — static copy text", () => {
 
   it("empty-hint text matches spec", () => {
     expect(el("empty-hint").textContent).toBe("Enter a temperature in Celsius");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 14. Security: maxLength enforcement on #celsius-input
+// ---------------------------------------------------------------------------
+
+describe("dom — input maxLength enforcement", () => {
+  beforeEach(setup);
+
+  it("init() sets maxLength on #celsius-input to MAX_LENGTH", () => {
+    expect(el<HTMLInputElement>("celsius-input").maxLength).toBe(MAX_LENGTH);
+  });
+
+  it("maxLength equals the parser length cap (32)", () => {
+    // If MAX_LENGTH ever changes in convert.ts, this test will remind us to
+    // re-verify that both the DOM attribute and the parser stay in sync.
+    expect(MAX_LENGTH).toBe(32);
+    expect(el<HTMLInputElement>("celsius-input").maxLength).toBe(32);
   });
 });
