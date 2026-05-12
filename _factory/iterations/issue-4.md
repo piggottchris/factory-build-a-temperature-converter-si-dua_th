@@ -1,3 +1,25 @@
+## Iteration 4 — Test and Evaluation Coverage: close all structural-assertion gaps in html-structure.test.ts
+
+- Critique: Nine distinct coverage gaps existed in the existing 16-test suite:
+  1. `placeholder` on `#celsius-input` was checked only `.toBeTruthy()` — the required exact value `"e.g. 100"` was never asserted.
+  2. `aria-describedby` was checked for "at least 2 IDs" but never verified the specific IDs `celsius-helper` and `celsius-error` were both present.
+  3. Helper-text copy was checked with a loose `/decimal/i` regex; the exact sentence `Decimals and negatives OK. Use "." as the decimal point.` was never pinned.
+  4. The error-slot test used a multi-criteria OR (`hasAttribute('hidden') || aria-hidden=true || data-state=hidden || id.includes('error')`) that would pass even if `hidden` was absent — it was matching on `id.includes('error')` alone.
+  5. `aria-live="polite"` on `#celsius-error` was never tested at all.
+  6. `role="status"` on `#celsius-hint` was never tested at all.
+  7. The `<dl>` / `<dt>` / `<dd>` semantic structure was not tested — only loose body-text regex matches confirmed presence of the words "Fahrenheit" and "Kelvin".
+  8. Exact `<dt>` label strings `"Fahrenheit (°F)"` and `"Kelvin (K)"` were never asserted.
+  9. The `results__value--empty` CSS modifier class on both `<dd>` output elements (added in iteration 2) was never exercised by a test, meaning regression protection was absent for that UX requirement.
+- Change:
+  - Added `it('#celsius-input placeholder is exactly "e.g. 100"')` asserting `.toBe('e.g. 100')`.
+  - Replaced the loose `aria-describedby` ID-count test with one that uses `.toContain('celsius-helper')` and `.toContain('celsius-error')`.
+  - Replaced the loose `/decimal/i` helper-text test with an exact-copy assertion (with whitespace normalisation to handle HTML entity rendering).
+  - Split the former multi-criteria error-slot test into two focused tests: one asserting `hasAttribute('hidden') === true`, one asserting `getAttribute('aria-live') === 'polite'`.
+  - Replaced the generic hint-text search with `getElementById('celsius-hint')` + exact `.textContent` match; added a dedicated `role="status"` assertion alongside it.
+  - Replaced the two loose body-text output-row tests (7 lines, 4 regex matchers) with 8 focused tests: `<dl>` existence, `<dt>` count = 2, `<dd>` count = 2, exact Fahrenheit label, exact Kelvin label, em-dash text for each `<dd>`, and `results__value--empty` class presence on both `<dd>` elements.
+- Files touched: `tests/html-structure.test.ts`
+- Tests: 16 passed before → 25 passed after (0 failures; 9 new assertions added)
+
 ## Iteration 3 — Backend Reliability: fix tsc strict-mode failures and add check:types script
 
 - Critique: `tsc --noEmit` exited with 5 errors under strict mode, making the project silently broken from a TypeScript perspective:

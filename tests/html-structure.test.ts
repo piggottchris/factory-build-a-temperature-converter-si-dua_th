@@ -106,13 +106,18 @@ describe('celsius input', () => {
     expect(input!.getAttribute('placeholder')).toBeTruthy()
   })
 
-  it('#celsius-input has aria-describedby referencing helper-text and error-slot', () => {
+  it('#celsius-input placeholder is exactly "e.g. 100"', () => {
+    const input = document.querySelector<HTMLInputElement>('#celsius-input')
+    expect(input).not.toBeNull()
+    expect(input!.getAttribute('placeholder')).toBe('e.g. 100')
+  })
+
+  it('#celsius-input has aria-describedby referencing "celsius-helper" and "celsius-error"', () => {
     const input = document.querySelector<HTMLInputElement>('#celsius-input')
     const describedby = input!.getAttribute('aria-describedby') ?? ''
-    expect(describedby.length).toBeGreaterThan(0)
-    // Must reference at least 2 IDs (helper-text and error-slot)
     const ids = describedby.trim().split(/\s+/)
-    expect(ids.length).toBeGreaterThanOrEqual(2)
+    expect(ids).toContain('celsius-helper')
+    expect(ids).toContain('celsius-error')
   })
 })
 
@@ -120,65 +125,86 @@ describe('celsius input', () => {
 // Helper text, error slot, empty hint
 // ---------------------------------------------------------------------------
 describe('helper and hint elements', () => {
-  it('has helper-text element with decimal/negative guidance', () => {
-    const input = document.querySelector<HTMLInputElement>('#celsius-input')
-    const describedby = input!.getAttribute('aria-describedby') ?? ''
-    const helperIds = describedby.trim().split(/\s+/)
-
-    // At least one referenced element should contain decimal guidance
-    const helperEl = helperIds
-      .map(id => document.getElementById(id))
-      .find(el => el?.textContent?.includes('decimal') || el?.textContent?.includes('Decimal'))
-
+  it('has helper-text element with exact copy', () => {
+    const helperEl = document.getElementById('celsius-helper')
     expect(helperEl).not.toBeNull()
-    expect(helperEl!.textContent).toMatch(/decimal/i)
+    // Normalize whitespace so HTML entity rendering differences don't break the assertion
+    const text = helperEl!.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+    expect(text).toBe('Decimals and negatives OK. Use “.” as the decimal point.')
   })
 
-  it('has a hidden error-slot element (in DOM but not shown)', () => {
-    // Error slot must exist in the DOM; the spec says it is hidden
-    const input = document.querySelector<HTMLInputElement>('#celsius-input')
-    const describedby = input!.getAttribute('aria-describedby') ?? ''
-    const ids = describedby.trim().split(/\s+/)
-
-    const errorEl = ids
-      .map(id => document.getElementById(id))
-      .find(el => el !== null && (
-        el.hasAttribute('hidden') ||
-        el.getAttribute('aria-hidden') === 'true' ||
-        el.getAttribute('data-state') === 'hidden' ||
-        el.id.includes('error')
-      ))
-
+  it('#celsius-error is present in the DOM with the hidden attribute', () => {
+    const errorEl = document.getElementById('celsius-error')
     expect(errorEl).not.toBeNull()
+    expect(errorEl!.hasAttribute('hidden')).toBe(true)
+  })
+
+  it('#celsius-error has aria-live="polite"', () => {
+    const errorEl = document.getElementById('celsius-error')
+    expect(errorEl).not.toBeNull()
+    expect(errorEl!.getAttribute('aria-live')).toBe('polite')
+  })
+
+  it('#celsius-hint has role="status"', () => {
+    const hintEl = document.getElementById('celsius-hint')
+    expect(hintEl).not.toBeNull()
+    expect(hintEl!.getAttribute('role')).toBe('status')
   })
 
   it('has empty-hint element with "Enter a temperature in Celsius"', () => {
-    // Find by text content
-    const all = Array.from(document.querySelectorAll('*'))
-    const hintEl = all.find(
-      el =>
-        el.textContent?.trim() === 'Enter a temperature in Celsius' &&
-        el.children.length === 0,
-    )
+    const hintEl = document.getElementById('celsius-hint')
     expect(hintEl).not.toBeNull()
+    expect(hintEl!.textContent?.trim()).toBe('Enter a temperature in Celsius')
   })
 })
 
 // ---------------------------------------------------------------------------
-// Output rows
+// Output rows — semantic structure and exact copy
 // ---------------------------------------------------------------------------
 describe('output rows', () => {
-  it('has a Fahrenheit output row with label and em-dash placeholder', () => {
-    const body = document.body.textContent ?? ''
-    expect(body).toMatch(/Fahrenheit/)
-    expect(body).toMatch(/°F/)
-    expect(body).toMatch(/—/)
+  it('uses a <dl> element for the results list', () => {
+    const dl = document.querySelector('dl.results')
+    expect(dl).not.toBeNull()
   })
 
-  it('has a Kelvin output row with label and em-dash placeholder', () => {
-    const body = document.body.textContent ?? ''
-    expect(body).toMatch(/Kelvin/)
-    expect(body).toMatch(/\bK\b/)
-    expect(body).toMatch(/—/)
+  it('has exactly two <dt> label elements inside the results <dl>', () => {
+    const dts = document.querySelectorAll('dl.results dt')
+    expect(dts.length).toBe(2)
+  })
+
+  it('has exactly two <dd> value elements inside the results <dl>', () => {
+    const dds = document.querySelectorAll('dl.results dd')
+    expect(dds.length).toBe(2)
+  })
+
+  it('Fahrenheit <dt> label text is exactly "Fahrenheit (°F)"', () => {
+    const dts = Array.from(document.querySelectorAll('dl.results dt'))
+    const fahr = dts.find(dt => dt.textContent?.trim() === 'Fahrenheit (°F)')
+    expect(fahr).not.toBeNull()
+  })
+
+  it('Kelvin <dt> label text is exactly "Kelvin (K)"', () => {
+    const dts = Array.from(document.querySelectorAll('dl.results dt'))
+    const kelvin = dts.find(dt => dt.textContent?.trim() === 'Kelvin (K)')
+    expect(kelvin).not.toBeNull()
+  })
+
+  it('#fahrenheit-output <dd> starts with the em-dash placeholder', () => {
+    const dd = document.getElementById('fahrenheit-output')
+    expect(dd).not.toBeNull()
+    expect(dd!.textContent?.trim()).toBe('—')
+  })
+
+  it('#kelvin-output <dd> starts with the em-dash placeholder', () => {
+    const dd = document.getElementById('kelvin-output')
+    expect(dd).not.toBeNull()
+    expect(dd!.textContent?.trim()).toBe('—')
+  })
+
+  it('#fahrenheit-output and #kelvin-output carry the empty-state CSS modifier', () => {
+    const fahr = document.getElementById('fahrenheit-output')
+    const kelvin = document.getElementById('kelvin-output')
+    expect(fahr!.classList.contains('results__value--empty')).toBe(true)
+    expect(kelvin!.classList.contains('results__value--empty')).toBe(true)
   })
 })
