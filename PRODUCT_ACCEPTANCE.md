@@ -26,7 +26,7 @@ A user on a 320 × 568 mobile device opens the temperature converter. The card f
 | 5 | Input and ± button: `min-height: 44px` and `min-width: 44px` | ⬜ |
 | 6 | Minimum text size `14px` everywhere inside the card | ⬜ |
 | 7 | Input `font-size ≥ 16px` at all breakpoints (prevents iOS Safari zoom) | ⬜ |
-| 8 | Vitest tests green — CSS file existence and rule assertions | ⬜ |
+| 8 | Vitest tests green — CSS file existence and rule assertions | ✅ |
 
 ---
 
