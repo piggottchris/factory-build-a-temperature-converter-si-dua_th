@@ -1,67 +1,74 @@
-# Product Acceptance Contract — Issue #3
+# Product Acceptance Contract — Issue #13
 
 ## Feature
-`tests/convert.test.ts`: unit tests for the temperature-converter's parser, math, and formatter utilities, covering the full behaviour specification that drives the frontend convert library.
+`tests/a11y.test.ts`: Vitest + jsdom + axe-core accessibility tests for the temperature
+converter widget, covering zero-violation checks in all three input states and an
+announcement-debounce assertion for screen-reader live regions.
 
 ## Product Archetype
-Developer tooling / test coverage layer for a temperature-converter POC built on FastAPI + MAF + CopilotKit.
+Developer tooling / accessibility-test coverage layer for a temperature-converter POC
+built on FastAPI + MAF + CopilotKit.
 
 ## Primary User Journey
-A developer runs `npm test` (or `pnpm test`) from `frontend/` and sees a green suite confirming that:
-- the temperature-input **parser** correctly classifies every edge-case string into `empty`, `pending`, `valid`, or `invalid`,
-- the **math** helpers produce exact conversion results for Celsius → Fahrenheit and Celsius → Kelvin,
-- the **formatter** rounds and formats numbers according to the half-away-from-zero rule.
+A developer runs `pnpm test:a11y` (or `npm run test:a11y`) from `frontend/` and sees a
+green suite confirming that:
+
+- the temperature converter widget passes automated axe-core accessibility checks in all
+  three meaningful states (EMPTY, VALID input, INVALID input),
+- screen-reader live-region announcements are debounced so rapid keystrokes do NOT
+  interrupt the user mid-typing, and
+- the announcement fires exactly once, with the correct Fahrenheit + Kelvin values,
+  after a 400 ms quiet period.
 
 ## Requirements
 
-### Test coverage (acceptance criteria)
+### Accessibility test coverage (acceptance criteria)
 
-#### Parser
-| Input | Expected status | Notes |
-|-------|-----------------|-------|
-| `''`, `'   '` | `empty` | blank / whitespace-only |
-| `-`, `.`, `-.`, `-0`, `1.`, `-1.` | `pending` | incomplete-number UI state |
-| `0`, `100`, `-40`, `36.6`, `.5`, `-.5` | `valid` with correct `value` | |
-| `abc`, `12abc`, `1.2.3`, `--5`, `1,5`, `1e2`, `2.5e-3` | `invalid: format` | bad characters / structure |
-| `1500000`, `-1000001` | `invalid: range` | outside ±1 000 000 |
-| 33-character string | `invalid: format` | length guard |
-| Whitespace-padded valid number | `valid` (trim applied) | |
+#### axe-core zero-violation checks
+| State | Trigger | Expected |
+|-------|---------|----------|
+| EMPTY | No input | `axe(document)` → 0 violations |
+| VALID | `input.value = '100'`, dispatch `input` | `axe(document)` → 0 violations |
+| INVALID | `input.value = 'abc'`, dispatch `input` | `axe(document)` → 0 violations |
 
-#### Math
-| Call | Expected |
-|------|----------|
-| `celsiusToFahrenheit(100)` | `212` |
-| `celsiusToFahrenheit(-40)` | `-40` |
-| `celsiusToFahrenheit(0)` | `32` |
-| `celsiusToKelvin(0)` | `273.15` |
-
-#### Formatter
-| Call | Expected |
-|------|----------|
-| `formatNumber(212)` | `'212.00'` |
-| `formatNumber(-0)` | `'0.00'` |
-| `formatNumber(97.875)` | rounds per half-away-from-zero |
-| Several near-zero and negative cases | see test file |
+#### Announcement debounce assertion
+| Step | Action | Expected |
+|------|--------|----------|
+| 1–5 | 5 rapid input events (< 400 ms apart each) | `#sr-result` and `#sr-error` both empty after each |
+| 6 | Advance fake clock by 400 ms | `#sr-result` contains Fahrenheit and Kelvin values |
 
 ### Environment
-- Node environment (no jsdom required)
-- Vitest test runner, discovered under `frontend/tests/**/*.test.ts`
-- `npm test` / `pnpm test` in `frontend/` must be green
+- jsdom environment (already configured in vitest)
+- `vi.useFakeTimers()` for debounce tests
+- `axe-core` for DOM accessibility checks
+- `pnpm test:a11y` must exit 0
+
+### Widget requirements
+- Accessible input with associated `<label>`
+- `#sr-result` — ARIA live region for announcing valid conversions (polite)
+- `#sr-error` — ARIA live region for announcing errors (assertive)
+- `aria-invalid` toggled correctly in VALID vs INVALID states
+- Error message connected to input via `aria-describedby`
+- 400 ms debounce on SR region updates
 
 ### Security
-Demo-mode / local-only. No authentication required. Input validation enforced in the parser (max length 32, range ±1 000 000, format allowlist).
+Demo-mode / local-only. No authentication required.
+Input validation is performed by the existing `parseTemperature` utility (max length 32,
+range ±1 000 000, format allowlist).
 
 ### Observability
-N/A for a pure unit-test PR — no runtime observability hooks needed.
+N/A for a pure test PR — no additional runtime observability hooks needed beyond what
+is already in place.
 
 ## Success Criteria
-- [x] All parser edge-cases covered (≥ 14 distinct inputs tested)
-- [x] All math conversions tested (4 assertions)
-- [x] All formatter cases tested (≥ 4 assertions)
-- [x] `npm test` exits 0 in the `frontend/` directory
-- [x] `frontend/lib/convert.ts` source file exists with exported `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`
-- [x] Vitest config updated to discover `tests/` directory
-- [x] No existing tests broken
+- [ ] `pnpm test:a11y` (vitest `--project a11y` or `--reporter` filter) exits 0
+- [ ] `axe-core` installed as a dev dependency
+- [ ] `frontend/tests/a11y.test.ts` exists and covers the three axe states
+- [ ] Debounce assertion uses `vi.useFakeTimers()` and 400 ms threshold
+- [ ] `#sr-result` populated with Fahrenheit + Kelvin after debounce fires
+- [ ] `frontend/lib/temperature-widget.ts` exists and is imported by the test
+- [ ] Zero existing tests broken (`pnpm test` still green)
+- [ ] No uv, no OpenAI, no @ai_function — all CLAUDE.md conventions respected
 
 ## Known Limitations
 _None at this time._
