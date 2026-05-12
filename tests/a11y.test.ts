@@ -124,9 +124,10 @@ describe('tab order — #sign-toggle button', () => {
   it('#sign-toggle appears after #celsius-input in DOM order', () => {
     const input = document.getElementById('celsius-input')!
     const btn   = document.getElementById('sign-toggle')!
-    // Node.DOCUMENT_POSITION_FOLLOWING = 4
+    // DOCUMENT_POSITION_FOLLOWING = 4 (numeric constant; Node global not available in Node.js env)
+    const DOCUMENT_POSITION_FOLLOWING = 4
     const pos = input.compareDocumentPosition(btn)
-    expect(pos & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(pos & DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 

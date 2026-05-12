@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta
+      name="description"
+      content="Convert Celsius to Fahrenheit and Kelvin instantly. No tracking, no accounts."
+    />
+    <meta name="theme-color" content="#f5f5f7" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Temperature Converter</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <div class="card">
+        <h1 class="card__heading">Temperature Converter</h1>
+
+        <div class="field">
+          <label class="field__label" for="celsius-input">Celsius (°C)</label>
+          <!--
+            aria-describedby is initialised to "celsius-helper" only.
+            src/main.ts adds "celsius-error" when an error is active and
+            removes it again when the error is cleared (issue #10 ARIA wiring).
+          -->
+          <input
+            id="celsius-input"
+            class="field__input"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            maxlength="32"
+            enterkeyhint="done"
+            placeholder="e.g. 100"
+            spellcheck="false"
+            autocorrect="off"
+            autocapitalize="none"
+            aria-describedby="celsius-helper"
+          />
+          <p id="celsius-helper" class="field__helper">
+            Decimals and negatives OK. Use &ldquo;.&rdquo; as the decimal point.
+          </p>
+          <p id="celsius-error" class="field__error" hidden aria-live="polite"></p>
+        </div>
+
+        <!--
+          #sign-toggle — ± button (issue #8).
+          Natural tab order: #celsius-input → #sign-toggle.
+          No tabindex attribute is set so browser-native tab order is preserved.
+        -->
+        <button
+          id="sign-toggle"
+          class="sign-toggle"
+          type="button"
+          aria-label="Toggle negative sign"
+        >±</button>
+
+        <p id="celsius-hint" class="hint" role="status">Enter a temperature in Celsius</p>
+
+        <dl class="results">
+          <div class="results__row">
+            <dt class="results__label">Fahrenheit (°F)</dt>
+            <dd id="fahrenheit-output" class="results__value results__value--empty">—</dd>
+          </div>
+          <div class="results__row">
+            <dt class="results__label">Kelvin (K)</dt>
+            <dd id="kelvin-output" class="results__value results__value--empty">—</dd>
+          </div>
+        </dl>
+      </div>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
