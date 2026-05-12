@@ -1,3 +1,10 @@
+## Iteration 5 — Product Acceptance: validate all acceptance criteria and tick Success Criteria checkboxes
+
+- Critique: The four Success Criteria checkboxes in `PRODUCT_ACCEPTANCE.md` were all unchecked despite every requirement being implemented across prior iterations. Specifically: `pnpm test` passes 25 tests (up from 16 at the start of this issue), `pnpm build` exits 0, `pnpm check:types` exits 0, no inline `<style>` or `<script>` is present (confirmed by tests), `pnpm-lock.yaml` is present and committed (added in Iteration 3), and the card constrains itself to `max-width: 420px; width: 100%` with `body { padding: 24px 16px }` — leaving 288px of usable width on a 320px viewport, which avoids horizontal scroll.
+- Change: Ticked all four `[ ]` → `[x]` checkboxes in the "Success Criteria" section of `PRODUCT_ACCEPTANCE.md`. No code changes were required — all requirements were already met.
+- Files touched: `PRODUCT_ACCEPTANCE.md`, `_factory/iterations/issue-4.md`
+- Tests: 25 passed before → 25 passed after (no regressions); `pnpm build` exits 0; `pnpm check:types` exits 0
+
 ## Iteration 4 — Test and Evaluation Coverage: close all structural-assertion gaps in html-structure.test.ts
 
 - Critique: Nine distinct coverage gaps existed in the existing 16-test suite:

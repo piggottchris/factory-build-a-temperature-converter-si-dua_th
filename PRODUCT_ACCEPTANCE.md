@@ -62,10 +62,10 @@ This issue delivers the **static card structure and base visual styles** only
 
 ## Success Criteria
 
-- [ ] `pnpm dev` renders the card with all static labels and `—` output rows.
-- [ ] All HTML structure tests pass (`pnpm test`).
-- [ ] No inline `<style>` or inline `<script>` present.
-- [ ] Card visible and readable on 320 px viewport without horizontal scroll (base layout).
+- [x] `pnpm dev` renders the card with all static labels and `—` output rows.
+- [x] All HTML structure tests pass (`pnpm test`).
+- [x] No inline `<style>` or inline `<script>` present.
+- [x] Card visible and readable on 320 px viewport without horizontal scroll (base layout).
 
 ## Known Limitations
 
