@@ -49,3 +49,33 @@
   - _factory/iterations/issue-11.md (this file)
 
 - Tests: 54 passed before → 58 passed after (4 new message-format assertions, all green).
+
+## Iteration 3 — Backend Reliability: fix TypeScript compile errors in test hooks
+
+- Critique: `npm run check:types` (tsc --noEmit) exited with 4 errors — all in
+  `tests/a11y.test.ts`. The two `describe` blocks that test the debounced announcer used
+  concise arrow syntax for `beforeEach`/`afterEach`:
+
+    ```ts
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(()  => vi.useRealTimers())
+    ```
+
+  Both `vi.useFakeTimers()` and `vi.useRealTimers()` return `VitestUtils` (the `vi`
+  singleton). With Vitest 1.6.x the hook callback signature was tightened to
+  `Awaitable<HookCleanupCallback | void>`. Because the arrow has no braces the return
+  value of the expression is implicitly the return value of the callback, so TypeScript
+  correctly flagged `VitestUtils` as non-assignable to the expected type. At runtime
+  the code happened to work (Vitest ignores non-Promise, non-function return values), but
+  the type errors meant `check:types` could never go green — a silent compile-time
+  reliability gap that would mask future real errors in the same file.
+
+- Change: Added block bodies `{ ... }` to all four arrow-function hooks in the two
+  affected `describe` blocks inside `tests/a11y.test.ts`. With block bodies the arrows
+  return `undefined` (i.e. `void`), which satisfies the hook callback constraint.
+  No logic was changed; the fix is purely syntactic. `tsc --noEmit` now exits 0.
+
+- Files touched:
+  - tests/a11y.test.ts
+
+- Tests: 58 passed before → 58 passed after (no regressions; `check:types` now exits 0).

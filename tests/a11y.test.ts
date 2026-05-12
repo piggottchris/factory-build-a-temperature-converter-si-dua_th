@@ -145,8 +145,8 @@ describe('.sr-only in src/styles.css', () => {
 // ---------------------------------------------------------------------------
 
 describe('createAnnouncer — debounced SR updates', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
 
   /** Minimal stand-ins for HTMLElement (only textContent needed) */
   function makeEls() {
@@ -274,8 +274,8 @@ describe('createAnnouncer — debounced SR updates', () => {
 // ---------------------------------------------------------------------------
 
 describe('SR announcement message format', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
 
   function makeEls() {
     const srResult = { textContent: '' } as unknown as HTMLElement
