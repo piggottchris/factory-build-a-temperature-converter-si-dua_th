@@ -72,12 +72,13 @@ input.addEventListener('input', () => {
     hintEl!.textContent = ''
     input!.removeAttribute('aria-invalid')
 
-    // Debounced SR announcement
+    // Debounced SR announcement — include the source value so the message is
+    // self-contained for screen-reader users who don't see the input field label.
     announcer.schedule(
       srResult!,
       srError!,
       'valid',
-      `${formatNumber(fahr)} °F and ${formatNumber(kelv)} K`,
+      `${formatNumber(parsed.value)} °C = ${formatNumber(fahr)} °F and ${formatNumber(kelv)} K`,
     )
   } else if (parsed.state === 'invalid') {
     const msg =

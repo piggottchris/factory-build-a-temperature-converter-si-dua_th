@@ -12,6 +12,7 @@ import { resolve } from 'node:path'
 import { JSDOM } from 'jsdom'
 import { describe, it, expect, beforeAll, vi, beforeEach, afterEach } from 'vitest'
 import { createAnnouncer } from '../src/announcer'
+import { celsiusToFahrenheit, celsiusToKelvin, formatNumber } from '../src/convert'
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -265,5 +266,68 @@ describe('createAnnouncer — debounced SR updates', () => {
 
     expect(srResult.textContent).toBe('')
     expect(srError.textContent).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// SR announcement message format — self-contained messages for screen readers
+// ---------------------------------------------------------------------------
+
+describe('SR announcement message format', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  function makeEls() {
+    const srResult = { textContent: '' } as unknown as HTMLElement
+    const srError = { textContent: '' } as unknown as HTMLElement
+    return { srResult, srError }
+  }
+
+  it('valid announcement includes source Celsius value', () => {
+    // Verify the message format that main.ts should produce:
+    // "<C> °C = <F> °F and <K> K"  — self-contained for SR users
+    const celsius = 100
+    const fahr = celsiusToFahrenheit(celsius)
+    const kelv = celsiusToKelvin(celsius)
+    const msg = `${formatNumber(celsius)} °C = ${formatNumber(fahr)} °F and ${formatNumber(kelv)} K`
+
+    const { srResult, srError } = makeEls()
+    const ann = createAnnouncer(400)
+    ann.schedule(srResult, srError, 'valid', msg)
+    vi.advanceTimersByTime(400)
+
+    // The announcement must include the source unit so it is self-contained
+    expect(srResult.textContent).toContain('°C')
+    expect(srResult.textContent).toContain('°F')
+    expect(srResult.textContent).toContain('K')
+    expect(srResult.textContent).toMatch(/\d+\.?\d*\s*°C\s*=\s*\d+\.?\d*\s*°F/)
+  })
+
+  it('valid announcement for 0 °C reads "0.00 °C = 32.00 °F and 273.15 K"', () => {
+    const celsius = 0
+    const fahr = celsiusToFahrenheit(celsius)
+    const kelv = celsiusToKelvin(celsius)
+    const msg = `${formatNumber(celsius)} °C = ${formatNumber(fahr)} °F and ${formatNumber(kelv)} K`
+
+    expect(msg).toBe('0.00 °C = 32.00 °F and 273.15 K')
+  })
+
+  it('valid announcement for 100 °C reads "100.00 °C = 212.00 °F and 373.15 K"', () => {
+    const celsius = 100
+    const fahr = celsiusToFahrenheit(celsius)
+    const kelv = celsiusToKelvin(celsius)
+    const msg = `${formatNumber(celsius)} °C = ${formatNumber(fahr)} °F and ${formatNumber(kelv)} K`
+
+    expect(msg).toBe('100.00 °C = 212.00 °F and 373.15 K')
+  })
+
+  it('valid announcement for -40 °C (crossover point) includes negative Celsius', () => {
+    const celsius = -40
+    const fahr = celsiusToFahrenheit(celsius)
+    const kelv = celsiusToKelvin(celsius)
+    const msg = `${formatNumber(celsius)} °C = ${formatNumber(fahr)} °F and ${formatNumber(kelv)} K`
+
+    expect(msg).toContain('-40.00 °C')
+    expect(msg).toContain('-40.00 °F')
   })
 })
