@@ -2,8 +2,11 @@
  * Accessibility tests for the temperature-converter widget.
  *
  * Covers:
- *  1. axe-core zero-violation checks in EMPTY, VALID, and INVALID states.
+ *  1. axe-core zero-violation checks in EMPTY, VALID, INVALID, and PENDING states.
  *  2. Debounced screen-reader announcement assertion using vi.useFakeTimers().
+ *  3. Visible DOM updates (#temp-result, #temp-error) for all widget states.
+ *  4. Distinct error messages for format-invalid vs range-invalid inputs.
+ *  5. #sr-error announcement fires after 400 ms debounce for invalid inputs.
  *
  * Environment: jsdom (configured in vitest.config.ts).
  */
@@ -66,6 +69,17 @@ describe("Temperature Converter — axe-core zero violations", () => {
   it("INVALID state (input=abc): zero axe violations", async () => {
     const input = document.querySelector<HTMLInputElement>("#temp-input")!;
     input.value = "abc";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const violations = await runAxe();
+    expect(violations).toHaveLength(0);
+  });
+
+  it("PENDING state (input=-): zero axe violations", async () => {
+    // "-" is a pending input — user started typing a negative number.
+    // The widget renders a neutral state (no error, no result).
+    const input = document.querySelector<HTMLInputElement>("#temp-input")!;
+    input.value = "-";
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     const violations = await runAxe();
@@ -208,5 +222,170 @@ describe("Temperature Converter — reliability (idempotent cleanup / double-mou
     expect(srResult2.textContent).not.toContain("210.20");
 
     unmount2();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Visible DOM updates (#temp-result, #temp-error)
+// ---------------------------------------------------------------------------
+
+describe("Temperature Converter — visible DOM updates", () => {
+  let container: HTMLElement;
+  let unmount: () => void;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = "";
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    unmount = mountTemperatureWidget(container);
+  });
+
+  afterEach(() => {
+    unmount();
+    vi.useRealTimers();
+    document.body.innerHTML = "";
+  });
+
+  it("VALID state: #temp-result shows Fahrenheit and Kelvin, #temp-error is empty", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const tempResult = container.querySelector<HTMLElement>("#temp-result")!;
+    const tempError = container.querySelector<HTMLElement>("#temp-error")!;
+
+    input.value = "0";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Visible result is updated immediately (not debounced).
+    expect(tempResult.textContent).toBe("32.00 °F / 273.15 K");
+    expect(tempError.textContent).toBe("");
+  });
+
+  it("INVALID (format) state: #temp-error shows format message, #temp-result is empty", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const tempResult = container.querySelector<HTMLElement>("#temp-result")!;
+    const tempError = container.querySelector<HTMLElement>("#temp-error")!;
+
+    input.value = "abc";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(tempResult.textContent).toBe("");
+    expect(tempError.textContent).toContain("valid number");
+  });
+
+  it("INVALID (range) state: #temp-error shows range message distinct from format message", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const tempResult = container.querySelector<HTMLElement>("#temp-result")!;
+    const tempError = container.querySelector<HTMLElement>("#temp-error")!;
+
+    // 2000000 exceeds MAX_ABS (1_000_000) — triggers range error.
+    input.value = "2000000";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(tempResult.textContent).toBe("");
+    // Range error message must mention the allowed bounds.
+    expect(tempError.textContent).toContain("1,000,000");
+    // Range error message must NOT be the format error message.
+    expect(tempError.textContent).not.toContain("valid number");
+  });
+
+  it("PENDING state: both #temp-result and #temp-error are empty", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const tempResult = container.querySelector<HTMLElement>("#temp-result")!;
+    const tempError = container.querySelector<HTMLElement>("#temp-error")!;
+
+    input.value = "-";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(tempResult.textContent).toBe("");
+    expect(tempError.textContent).toBe("");
+  });
+
+  it("EMPTY state: both #temp-result and #temp-error are empty", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const tempResult = container.querySelector<HTMLElement>("#temp-result")!;
+    const tempError = container.querySelector<HTMLElement>("#temp-error")!;
+
+    // Start with a valid value, then clear it.
+    input.value = "25";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(tempResult.textContent).toBe("");
+    expect(tempError.textContent).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #sr-error debounce announcement for invalid input
+// ---------------------------------------------------------------------------
+
+describe("Temperature Converter — sr-error debounce announcement", () => {
+  let container: HTMLElement;
+  let unmount: () => void;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = "";
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    unmount = mountTemperatureWidget(container);
+  });
+
+  afterEach(() => {
+    unmount();
+    vi.useRealTimers();
+    document.body.innerHTML = "";
+  });
+
+  it("format-invalid: #sr-error is silent until 400 ms then announces format error", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const srError = container.querySelector<HTMLElement>("#sr-error")!;
+    const srResult = container.querySelector<HTMLElement>("#sr-result")!;
+
+    input.value = "xyz";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // SR region must be empty before the debounce window expires.
+    expect(srError.textContent).toBe("");
+
+    vi.advanceTimersByTime(400);
+
+    // After debounce fires, #sr-error must contain the format error.
+    expect(srError.textContent).toContain("valid number");
+    // #sr-result must remain empty for an invalid input.
+    expect(srResult.textContent).toBe("");
+  });
+
+  it("range-invalid: #sr-error announces range error (distinct from format error)", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const srError = container.querySelector<HTMLElement>("#sr-error")!;
+
+    input.value = "9999999";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(srError.textContent).toBe("");
+
+    vi.advanceTimersByTime(400);
+
+    // Range message must mention the boundary, NOT the generic format hint.
+    expect(srError.textContent).toContain("1,000,000");
+    expect(srError.textContent).not.toContain("valid number");
+  });
+
+  it("rapid invalid keystrokes: #sr-error stays silent until final debounce fires", () => {
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const srError = container.querySelector<HTMLElement>("#sr-error")!;
+
+    const strokes = ["x", "xy", "xyz", "xyza", "xyzab"];
+    for (const value of strokes) {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      vi.advanceTimersByTime(100);
+      expect(srError.textContent).toBe("");
+    }
+
+    vi.advanceTimersByTime(400);
+    expect(srError.textContent).toContain("valid number");
   });
 });
