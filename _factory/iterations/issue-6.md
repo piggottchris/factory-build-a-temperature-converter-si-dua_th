@@ -81,3 +81,37 @@ The existing pending guard (`trimmed === "-" || trimmed.endsWith(".")`) only cov
 **Files touched:** `tests/convert.test.ts` (new), `tests/dom.test.ts`, `PRODUCT_ACCEPTANCE.md`
 
 **Tests:** pnpm test → 113 passed (was 41)
+
+## Pass 5 — Product Acceptance
+
+**Finding:** Walked every item in PRODUCT_ACCEPTANCE.md against the source code.
+
+Primary user journey verified by code-tracing:
+- Fresh page load → `main.ts` runs `initConverter`; outputs hold `—` and `empty-hint` is
+  visible (DOM initial state from HTML fixture; no input event fired yet).
+- Type `100` → `parseCelsius("100")` → `{ type: "valid", value: 100 }` →
+  `celsiusToFahrenheit(100) = 212` → `formatNumber(212) = "212.00"`, displayed as
+  `"212.00 °F"`. `celsiusToKelvin(100) = 373.15` → `"373.15 K"`. Confirmed by
+  `tests/dom.test.ts` "shows 212.00 °F for 100 °C" / "shows 373.15 K for 100 °C".
+- Clear → `parseCelsius("") = { type: "empty" }` → outputs reset to `—`, hint shown,
+  `aria-describedby = "empty-hint"`. Confirmed by "outputs revert to — after clearing".
+- Type `9999999` → `parseCelsius("9999999") = { type: "invalid", reason: "range" }` →
+  `MSG_RANGE` shown. Confirmed by "shows range error for value above 1 000 000".
+- Type `abc` → `{ type: "invalid", reason: "format" }` → `MSG_FORMAT` shown. Confirmed.
+- Correct to `0` → `{ type: "valid", value: 0 }` → `"32.00 °F"` / `"273.15 K"`. Confirmed.
+
+All 11 UI/Frontend requirements verified as implemented and all unchecked boxes ticked.
+Security demo-mode limitation documented under Known Limitations. CI integration gap
+(Issue #19) documented — per the hard rule against touching `.github/workflows/*` in a
+refinement pass, the ci.yml addition is deferred to Issue #19's PR.
+
+**Change:**
+- Ticked all 11 UI/Frontend requirement checkboxes in `PRODUCT_ACCEPTANCE.md` with
+  inline evidence (file/line references).
+- Ticked the Security demo-mode checkbox.
+- Expanded "Known Limitations" with three entries: authentication (n/a), security posture
+  (CSP policy documented), and CI integration gap (Issue #19 tracked, not yet wired).
+
+**Files touched:** `PRODUCT_ACCEPTANCE.md`
+
+**Tests:** pnpm test → 113 passed
