@@ -62,19 +62,21 @@ Not applicable to static client-side code.
 - [x] `#sign-toggle` tab produces visible focus ring (same style family)
 - [x] `aria-describedby` toggling verified by unit test
 - [x] No global `outline: none` in CSS
-- [ ] Colour contrast ratio ≥ 4.5:1 for all informational text pairs (documented below)
+- [x] Colour contrast ratio ≥ 4.5:1 for all informational text pairs (documented below)
 
 ## Colour Contrast Pairs
 
+Ratios are computed from WCAG 2.1 relative luminance formula (verified programmatically).
+
 | Element | Foreground | Background | Ratio | WCAG AA |
 |---|---|---|---|---|
-| Body text / headings | `#1d1d1f` | `#ffffff` (card) | ~21:1 | ✅ Pass |
-| Input text | `#1d1d1f` | `#f5f5f7` (input bg) | ~19.5:1 | ✅ Pass |
-| Label text | `#3a3a3c` | `#ffffff` | ~12.6:1 | ✅ Pass |
-| Helper/hint text | `#6e6e73` | `#ffffff` | ~5.9:1 | ✅ Pass |
-| Error text | `#ff3b30` | `#ffffff` | ~4.48:1 | ✅ Pass (borderline; documented) |
-| Empty-state `<dd>` | `#aeaeb2` | `#ffffff` | ~2.8:1 | ⚠️ Decorative placeholder only (em-dash), not conveying information; screen reader fallback via `role="status"` hint |
-| Focus ring | `#0071e3` | `#f5f5f7` (page bg) | ~4.6:1 | ✅ Pass |
+| Body text / headings | `#1d1d1f` | `#ffffff` (card) | 16.83:1 | ✅ Pass |
+| Input text | `#1d1d1f` | `#f5f5f7` (input bg) | 15.46:1 | ✅ Pass |
+| Label text | `#3a3a3c` | `#ffffff` | 11.35:1 | ✅ Pass |
+| Helper/hint text | `#6e6e73` | `#ffffff` | 5.07:1 | ✅ Pass |
+| Error text | `#d93025` | `#ffffff` | 4.77:1 | ✅ Pass |
+| Empty-state `<dd>` | `#aeaeb2` | `#ffffff` | 2.21:1 | ⚠️ Decorative placeholder only (em-dash), not conveying information; screen reader fallback via `role="status"` hint |
+| Focus ring | `#0060d1` | `#f5f5f7` (page bg) | 5.37:1 | ✅ Pass |
 
 ## Known Limitations
 - Full automated axe-core audit deferred to issue #13.

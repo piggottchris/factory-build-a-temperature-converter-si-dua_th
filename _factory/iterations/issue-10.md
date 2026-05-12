@@ -46,3 +46,15 @@
   - `PRODUCT_ACCEPTANCE.md` — ticked 13 checkboxes (ARIA, focus styles, tab order, structure, success criteria — all except colour contrast which requires manual measurement)
 
 - Tests: 36 passed before → 50 passed after (14 new tests added, 0 failures)
+
+## Iteration 5 — Product Acceptance: fix failing WCAG AA colour contrast and tick final success criterion
+
+- Critique: A systematic line-by-line audit of PRODUCT_ACCEPTANCE.md against the actual CSS revealed two material gaps. (1) The documented contrast ratios were overstated — the table quoted ~21:1, ~19.5:1, ~12.6:1, ~5.9:1, ~4.48:1, ~2.8:1, and ~4.6:1, but programmatic verification against the WCAG 2.1 relative-luminance formula yielded 16.83, 15.46, 11.35, 5.07, 3.55, 2.21, and 4.31 respectively. All informational-text pairs except the error colour and focus ring still pass ≥ 4.5:1, but both the error colour (`#ff3b30` at 3.55:1) and the focus ring (`#0071e3` at 4.31:1 on `#f5f5f7`) fell below the WCAG AA threshold. The success criterion "Colour contrast ratio ≥ 4.5:1 for all informational text pairs" could not legitimately be checked. (2) The PRODUCT_ACCEPTANCE.md table had a note "borderline; documented" for `#ff3b30` claiming 4.48:1 — this was incorrect by ~0.93 ratio points; the true value is 3.55:1, a clear failure.
+
+- Change: Updated `src/styles.css` in four places: (a) `.field__error` text colour changed from `#ff3b30` to `#d93025` (4.77:1 on white — WCAG AA pass); (b) `.field__input[aria-invalid="true"]` border colour updated to match at `#d93025`; (c) `.field__input:focus-visible` outline and border-color changed from `#0071e3` to `#0060d1` (5.37:1 on `#f5f5f7` page bg, 5.84:1 on card white); (d) `#sign-toggle:focus-visible` outline changed from `#0071e3` to `#0060d1`. Updated `PRODUCT_ACCEPTANCE.md`: corrected all seven contrast ratio values with programmatically verified figures, changed the error row from `#ff3b30` to `#d93025`, changed the focus row from `#0071e3` to `#0060d1`, and ticked the final success criterion checkbox `[x]`.
+
+- Files touched:
+  - `src/styles.css` — 4 colour value changes (error text, error border, focus ring input, focus ring button)
+  - `PRODUCT_ACCEPTANCE.md` — corrected contrast table, ticked final success criterion
+
+- Tests: 50 passed before → 50 passed after (0 new tests, 0 failures; all 50 existing tests remain green)
