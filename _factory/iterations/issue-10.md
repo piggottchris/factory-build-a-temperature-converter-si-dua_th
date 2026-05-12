@@ -22,3 +22,15 @@
   - `tests/a11y.test.ts` — 5 new tests for aria-pressed initial state and JS sync
 
 - Tests: 22 passed before → 27 passed after (5 new aria-pressed tests added, 0 failures)
+
+## Iteration 3 — Backend Reliability: defensive guards for CustomEvent detail and toggleSign whitespace
+
+- Critique: Two robustness gaps existed in `src/main.ts`. (1) The `celsius-error` CustomEvent listener destructured `evt.detail` without guarding against `null` or `undefined` detail — if any caller dispatches `new CustomEvent('celsius-error')` without a `detail` object (or with `{ detail: null }`), the destructuring throws a TypeError inside the event callback. Because event-listener exceptions are swallowed by the browser, this leaves the ARIA error state permanently stale with no visible failure signal: screen-reader users lose all error announcements silently. (2) `toggleSign` did not trim its input before inspection, so whitespace-only strings like `'   '` produced `'-   '` rather than `'-'`, and a value like `-  42  ` produced `  42` (outer whitespace stripped but interior gap preserved after sign removal). In a numeric input field these are minor but real edge cases that can corrupt conversion output.
+
+- Change: In the `celsius-error` listener, added an explicit guard that returns early when `detail` is `null`, `undefined`, or not an object — preventing the TypeError crash. Replaced the cast-and-destructure pattern with a two-step approach: extract `detail` as `unknown`, type-check it, then cast to a partial type for property access. The `hasError` check uses strict equality (`=== true`) so a missing or non-boolean `hasError` key is treated as no-error rather than silently trusting a falsy cast. In `toggleSign`, added `currentValue.trim()` before any logic so whitespace-only values are treated identically to the empty string and outer whitespace is stripped from all inputs before sign manipulation. Added `tests/reliability.test.ts` with 9 tests covering both fixes: five `toggleSign` whitespace variants and four source-level assertions confirming the defensive guard pattern is present in `main.ts`.
+
+- Files touched:
+  - `src/main.ts` — null/undefined/non-object guard in `celsius-error` listener; `=== true` strict-equality for `hasError`; `trim()` in `toggleSign`
+  - `tests/reliability.test.ts` — new file, 9 reliability/edge-case tests
+
+- Tests: 27 passed before → 36 passed after (9 new reliability tests added, 0 failures)

@@ -39,11 +39,17 @@ export function setInputAriaError(
  *   '-42' → '42'
  *   '42'  → '-42'
  *   ''    → '-'    (start a negative entry)
+ *
+ * The value is trimmed before inspection so that whitespace-only strings are
+ * treated identically to the empty string (both yield '-'), and a sign-only
+ * value like '-   ' strips to the empty string rather than returning trailing
+ * whitespace.
  */
 export function toggleSign(currentValue: string): string {
-  if (currentValue.startsWith('-')) return currentValue.slice(1)
-  if (currentValue === '') return '-'
-  return '-' + currentValue
+  const trimmed = currentValue.trim()
+  if (trimmed.startsWith('-')) return trimmed.slice(1)
+  if (trimmed === '') return '-'
+  return '-' + trimmed
 }
 
 /**
@@ -98,11 +104,20 @@ function initDom(): void {
   //   document.dispatchEvent(new CustomEvent('celsius-error', { detail: { hasError: true, message: '...' } }))
   // This avoids polluting the window namespace and prevents any caller from
   // directly manipulating the ARIA error state via a window-level handle.
+  //
+  // Defensive guard: if `detail` is null/undefined (malformed dispatch), or
+  // `hasError` is not present, we silently ignore the event.  Crashing inside
+  // an event callback would produce an unhandled error but leave ARIA state
+  // stale — the guard is strictly safer.
   if (input && errorEl) {
     document.addEventListener('celsius-error', (evt: Event) => {
-      const { hasError, message } = (evt as CustomEvent<{ hasError: boolean; message?: string }>).detail
-      setInputAriaError(input, hasError)
-      if (hasError) {
+      const detail = (evt as CustomEvent<unknown>).detail
+      if (detail === null || detail === undefined || typeof detail !== 'object') return
+      const { hasError, message } = detail as { hasError?: unknown; message?: unknown }
+      // If hasError is not explicitly a boolean true, treat as no error
+      const isError = hasError === true
+      setInputAriaError(input, isError)
+      if (isError) {
         errorEl.textContent = typeof message === 'string' ? message : ''
         errorEl.removeAttribute('hidden')
       } else {
