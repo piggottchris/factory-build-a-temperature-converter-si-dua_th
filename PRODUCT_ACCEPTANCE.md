@@ -1,67 +1,51 @@
-# Product Acceptance Contract — Issue #3
+# Product Acceptance Contract — Issue #17
 
 ## Feature
-`tests/convert.test.ts`: unit tests for the temperature-converter's parser, math, and formatter utilities, covering the full behaviour specification that drives the frontend convert library.
+`scripts/check-bundle.js`: gzip bundle-size guard that asserts JS ≤ 10 KB and CSS ≤ 4 KB, wired as `check:bundle` in `package.json`.
 
 ## Product Archetype
-Developer tooling / test coverage layer for a temperature-converter POC built on FastAPI + MAF + CopilotKit.
+CI tooling / quality gate for a temperature-converter POC frontend built on Next.js + CopilotKit.
 
 ## Primary User Journey
-A developer runs `npm test` (or `pnpm test`) from `frontend/` and sees a green suite confirming that:
-- the temperature-input **parser** correctly classifies every edge-case string into `empty`, `pending`, `valid`, or `invalid`,
-- the **math** helpers produce exact conversion results for Celsius → Fahrenheit and Celsius → Kelvin,
-- the **formatter** rounds and formats numbers according to the half-away-from-zero rule.
+A developer (or CI pipeline) runs `pnpm build && pnpm check:bundle` after every frontend build and sees a clear pass/fail report:
+- **Pass**: script prints each asset's gzip size plus totals, then exits 0.
+- **Fail**: script prints the offending files, their gzip sizes, and the relevant budget limit, then exits 1.
 
 ## Requirements
 
-### Test coverage (acceptance criteria)
+### Script behaviour (`scripts/check-bundle.js`)
+| Scenario | Expected |
+|----------|----------|
+| `dist/assets/` does not exist | exit 0 (nothing to check) |
+| Empty `dist/assets/` | exit 0 |
+| JS files within 10 240-byte gzip budget | exit 0 |
+| CSS files within 4 096-byte gzip budget | exit 0 |
+| JS total gzip > 10 240 bytes | exit 1, print filename + size + limit |
+| CSS total gzip > 4 096 bytes | exit 1, print filename + size + limit |
+| Both JS and CSS exceed budgets | exit 1, report both violations |
 
-#### Parser
-| Input | Expected status | Notes |
-|-------|-----------------|-------|
-| `''`, `'   '` | `empty` | blank / whitespace-only |
-| `-`, `.`, `-.`, `-0`, `1.`, `-1.` | `pending` | incomplete-number UI state |
-| `0`, `100`, `-40`, `36.6`, `.5`, `-.5` | `valid` with correct `value` | |
-| `abc`, `12abc`, `1.2.3`, `--5`, `1,5`, `1e2`, `2.5e-3` | `invalid: format` | bad characters / structure |
-| `1500000`, `-1000001` | `invalid: range` | outside ±1 000 000 |
-| 33-character string | `invalid: format` | length guard |
-| Whitespace-padded valid number | `valid` (trim applied) | |
+### CLI interface
+- `node scripts/check-bundle.js [distAssetsDir]` — first CLI argument overrides the default `dist/assets` path.
+- Stdout/stderr: success messages to stdout, violation messages to stderr.
 
-#### Math
-| Call | Expected |
-|------|----------|
-| `celsiusToFahrenheit(100)` | `212` |
-| `celsiusToFahrenheit(-40)` | `-40` |
-| `celsiusToFahrenheit(0)` | `32` |
-| `celsiusToKelvin(0)` | `273.15` |
-
-#### Formatter
-| Call | Expected |
-|------|----------|
-| `formatNumber(212)` | `'212.00'` |
-| `formatNumber(-0)` | `'0.00'` |
-| `formatNumber(97.875)` | rounds per half-away-from-zero |
-| Several near-zero and negative cases | see test file |
-
-### Environment
-- Node environment (no jsdom required)
-- Vitest test runner, discovered under `frontend/tests/**/*.test.ts`
-- `npm test` / `pnpm test` in `frontend/` must be green
+### `package.json` script
+`"check:bundle": "node scripts/check-bundle.js"`
 
 ### Security
-Demo-mode / local-only. No authentication required. Input validation enforced in the parser (max length 32, range ±1 000 000, format allowlist).
+Demo-mode / local-only. No authentication required. Script reads local filesystem only; no network access.
 
 ### Observability
-N/A for a pure unit-test PR — no runtime observability hooks needed.
+Exits 0 or 1; all size data printed to stdout/stderr for CI log capture.
 
 ## Success Criteria
-- [x] All parser edge-cases covered (≥ 14 distinct inputs tested)
-- [x] All math conversions tested (4 assertions)
-- [x] All formatter cases tested (≥ 4 assertions)
-- [x] `npm test` exits 0 in the `frontend/` directory
-- [x] `frontend/lib/convert.ts` source file exists with exported `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`
-- [x] Vitest config updated to discover `tests/` directory
-- [x] No existing tests broken
+- [ ] `scripts/check-bundle.js` exists and is runnable with `node`
+- [ ] `package.json` includes `"check:bundle": "node scripts/check-bundle.js"`
+- [ ] `pnpm build && pnpm check:bundle` exits 0 for the current app
+- [ ] Injecting a synthetic ≥ 20 KB incompressible JS file into `dist/assets/` causes exit 1
+- [ ] Injecting a synthetic ≥ 5 KB incompressible CSS file into `dist/assets/` causes exit 1
+- [ ] Failure output names the file(s) and prints the budget limit
+- [ ] `npm test` (vitest) passes with the new `tests/check-bundle.test.ts` suite green
+- [ ] No existing tests broken
 
 ## Known Limitations
 _None at this time._
