@@ -1,3 +1,10 @@
+## Iteration 5 — Product Acceptance: full PRD audit — all requirements covered, no gaps found
+
+- Critique: Performed a systematic line-by-line audit of every PRD requirement listed in PRODUCT_ACCEPTANCE.md against the actual test file. Checked all 14+ parser edge-cases (empty, pending, valid, invalid-format, invalid-range, whitespace-trim), all 4 math assertions, and all formatter cases including negative-zero, half-away-from-zero rounding, and large-value no-separator check. Also verified exported API surface: `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`, four type guards, and two exported constants. No gaps were found — every PRD requirement is covered by an explicit test assertion.
+- Change: No code or test changes required. All 7 PRODUCT_ACCEPTANCE.md success criteria were already checked. Appended this iteration entry only.
+- Files touched: `_factory/iterations/issue-3.md`
+- Tests: 61 passed (0 new tests — all prior tests green, no regressions)
+
 ## Iteration 4 — Test and Evaluation Coverage: fill branch and boundary gaps in parser, math, and formatter tests
 
 - Critique: Five meaningful coverage gaps existed. (1) `TRAILING_DOT_RE` was only exercised with single-digit inputs (`"1."`, `"-1."`); the multi-digit case `"123."` was never tested, leaving the regex's `\d+` quantifier unverified for n>1. (2) The exact negative boundary `"-1000000"` was untested — the parser uses `Math.abs(value) > MAX_ABS` (strict greater-than), so ±1 000 000 must be *valid*, but only `"-1000001"` was checked. (3) Embedded whitespace (`"12 3"`) was not tested; `trim()` only strips leading/trailing space, so an internal space must produce `invalid: format`, but this was never asserted. (4) `celsiusToFahrenheit` had no float test — all three cases produced integers, leaving the `× 9/5` fractional branch unverified (37 °C → 98.6 °F). (5) `formatNumber` had no large-value test to confirm the absence of locale-specific thousands separators (1 000 000 should be `"1000000.00"`, not `"1,000,000.00"`).
