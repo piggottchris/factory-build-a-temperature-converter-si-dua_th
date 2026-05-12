@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
-    "test": "vitest"
+    "test": "vitest",
+    "test:a11y": "vitest run tests/a11y.test.ts"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.53",
@@ -24,6 +25,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.20",
+    "axe-core": "^4.11.4",
     "jsdom": "^25.0.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
