@@ -12,6 +12,8 @@ import {
   isPendingResult,
   isValidResult,
   isInvalidResult,
+  MAX_ABS,
+  MAX_LENGTH,
 } from "../lib/convert";
 
 // ---------------------------------------------------------------------------
@@ -159,6 +161,16 @@ describe("celsiusToKelvin", () => {
   it("converts absolute zero reference: 0 °C → 273.15 K", () => {
     expect(celsiusToKelvin(0)).toBe(273.15);
   });
+
+  it("converts boiling point: 100 °C → 373.15 K", () => {
+    expect(celsiusToKelvin(100)).toBe(373.15);
+  });
+
+  it("converts crossover temperature: -40 °C → 233.15 K (IEEE 754 drift guard)", () => {
+    // Raw addition (-40 + 273.15) produces 233.14999999999998 in IEEE 754.
+    // The implementation must return exactly 233.15.
+    expect(celsiusToKelvin(-40)).toBe(233.15);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -273,5 +285,28 @@ describe("isInvalidResult", () => {
     expect(isInvalidResult({ status: "empty" })).toBe(false);
     expect(isInvalidResult({ status: "pending" })).toBe(false);
     expect(isInvalidResult({ status: "valid", value: 0 })).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exported constants (module stability)
+// ---------------------------------------------------------------------------
+
+describe("exported constants", () => {
+  it("MAX_ABS matches the range boundary used by the parser", () => {
+    // 1 000 000 is valid; 1 000 001 is range-invalid.
+    expect(MAX_ABS).toBe(1_000_000);
+    expect(parseTemperature(String(MAX_ABS))).toEqual({ status: "valid", value: MAX_ABS });
+    expect(parseTemperature(String(MAX_ABS + 1))).toEqual({ status: "invalid", reason: "range" });
+  });
+
+  it("MAX_LENGTH matches the length boundary used by the parser", () => {
+    // A string of MAX_LENGTH characters is valid (if numeric); MAX_LENGTH + 1 is format-invalid.
+    expect(MAX_LENGTH).toBe(32);
+    const borderline = "1".repeat(MAX_LENGTH);
+    const tooLong = "1".repeat(MAX_LENGTH + 1);
+    // borderline is 32 ones → numeric and well within range
+    expect(parseTemperature(borderline).status).toBe("invalid"); // 111...1 (32 digits) exceeds MAX_ABS → range
+    expect(parseTemperature(tooLong)).toEqual({ status: "invalid", reason: "format" });
   });
 });

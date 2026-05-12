@@ -74,14 +74,20 @@ export function isInvalidResult(
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Maximum absolute value accepted by the parser. */
-const MAX_ABS = 1_000_000;
+/**
+ * Maximum absolute value (inclusive) accepted by the parser.
+ * Re-exported so callers that build their own input-validation UI can import
+ * the same boundary constant rather than hard-coding a magic number.
+ */
+export const MAX_ABS = 1_000_000;
 
 /**
  * Maximum character count (after trimming) before we reject as invalid format.
  * A 33-character string is explicitly required to be "invalid: format".
+ * Re-exported for callers who want to apply the same length cap in their own
+ * validation pass (e.g. to set a maxLength attribute on an <input>).
  */
-const MAX_LENGTH = 32;
+export const MAX_LENGTH = 32;
 
 /**
  * Allowlist regex for a fully-typed number:
@@ -153,9 +159,18 @@ export function celsiusToFahrenheit(celsius: number): number {
   return (celsius * 9) / 5 + 32;
 }
 
-/** Convert Celsius to Kelvin: K = C + 273.15. */
+/**
+ * Convert Celsius to Kelvin: K = C + 273.15.
+ *
+ * The raw addition `celsius + 273.15` is subject to IEEE 754 drift for many
+ * inputs (e.g. `celsiusToKelvin(-40)` → `233.14999999999998` without this
+ * fix).  Rounding to 10 decimal places eliminates all sub-picogram drift while
+ * preserving every digit that is physically meaningful — temperature
+ * measurements are accurate to at most ~0.001 K in any practical application,
+ * far coarser than the 10-decimal precision retained here.
+ */
 export function celsiusToKelvin(celsius: number): number {
-  return celsius + 273.15;
+  return Math.round((celsius + 273.15) * 1e10) / 1e10;
 }
 
 // ---------------------------------------------------------------------------
