@@ -70,3 +70,25 @@
   - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file)
 
 - Tests: before: 84 frontend / 2 backend passing, 0 failing. After: 90 frontend / 2 backend passing, 0 failing.
+
+## Iteration 5 — Product Acceptance: include next-config-headers.test.ts in check:security and fully align PRODUCT_ACCEPTANCE.md
+
+- Critique: Three gaps remained after Pass 4 that left the delivered product inaccurate against the issue contract:
+  1. `check:security` in `frontend/package.json` ran only `test/vercel-headers.test.ts`. The `test/next-config-headers.test.ts` file (added in Pass 3 specifically to detect drift between `vercel.json` and `next.config.mjs`) was excluded from the CI security script. This meant the script could pass even if `next.config.mjs` lost all its security headers — a critical hole in the static validation the issue requires.
+  2. `PRODUCT_ACCEPTANCE.md` Success Criteria was missing checkboxes for: the 3 hardening headers in `vercel.json`, `next.config.mjs` parity headers, `next-config-headers.test.ts` test pass, and the corrected `check:security` scope (both files). The criteria listed were accurate but incomplete.
+  3. The Static validation prose in the Requirements section described only one test file; it did not mention `next-config-headers.test.ts` at all.
+  4. The Known Limitations section still referred to `check:security` in the vague original terms ("a next task per issue body") rather than accurately describing what the script now does and what it does not cover. The `connect-src 'none'` CSP limitation (noted but not fixed in Pass 1) was not surfaced in the Known Limitations section.
+
+- Change:
+  1. Updated `check:security` in `frontend/package.json` to run both test files: `vitest run test/vercel-headers.test.ts test/next-config-headers.test.ts`. `npm run check:security` now runs 29 tests (24 + 5) instead of 24.
+  2. Updated `PRODUCT_ACCEPTANCE.md`:
+     - Static validation prose now mentions both test files with their test counts.
+     - Success Criteria expanded from 7 to 11 checkboxes, adding rows for the 3 hardening headers, `next.config.mjs` parity, both test files, and the updated `check:security` scope. All 11 checkboxes are ticked.
+     - Known Limitations rewritten to accurately describe the gap between static validation and live `curl -I` verification, and surfaces the `connect-src 'none'` CSP incompatibility as a follow-up item.
+
+- Files touched:
+  - `/sandbox/work/issue-16/frontend/package.json`
+  - `/sandbox/work/issue-16/PRODUCT_ACCEPTANCE.md`
+  - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file)
+
+- Tests: before: 90 frontend / 2 backend passing, 0 failing. After: 90 frontend / 2 backend passing, 0 failing. `npm run check:security` now runs 29 tests (was 24).

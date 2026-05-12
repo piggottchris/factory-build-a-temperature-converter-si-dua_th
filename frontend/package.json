@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "test": "vitest",
-    "check:security": "vitest run test/vercel-headers.test.ts"
+    "check:security": "vitest run test/vercel-headers.test.ts test/next-config-headers.test.ts"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.53",
