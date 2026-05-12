@@ -89,10 +89,6 @@ body {
   appearance: none;
 }
 
-.field__input:focus {
-  outline: none;
-}
-
 .field__input:focus-visible {
   outline: none;
   border-color: #0071e3;
