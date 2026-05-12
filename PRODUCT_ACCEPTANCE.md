@@ -67,7 +67,7 @@ N/A — this is a static analysis script. Exit codes and stdout messages are the
 - [x] `frontend/_headers` exists with all five required security response headers
 - [x] `"check:security"` script added to `frontend/package.json`
 - [x] `npm run check:security` exits 0 on the clean fixture
-- [ ] Injecting `<script>alert(1)</script>` into `dist/index.html` causes exit 1
+- [x] Injecting `<script>alert(1)</script>` into `dist/index.html` causes exit 1
 - [x] All vitest tests in `test/check-security.test.ts` pass
 - [x] No existing tests broken (`convert.test.ts`, `dom.test.ts`, `example.test.tsx` still pass)
 

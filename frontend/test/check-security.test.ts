@@ -384,6 +384,128 @@ describe("run() missing artefact resilience", () => {
   });
 });
 
+// ─── Injection tests (product acceptance contract) ───────────────────────────
+//
+// The PRODUCT_ACCEPTANCE.md acceptance criterion states:
+//   "Injecting <script>alert(1)</script> into dist/index.html must cause the
+//    script to exit 1 with a descriptive failure message."
+//
+// These tests exercise that guarantee end-to-end via spawnSync (real child
+// process, real file-reads) so there is no mocking gap between the unit tests
+// and the actual CLI behaviour.
+//
+// A secondary concern: run() must continue after the first check failure and
+// report ALL failing check names in the summary (not short-circuit at the
+// first throw).  The multi-failure test below verifies that property by
+// injecting two independent violations and asserting both names appear in stderr.
+
+describe("inline-script injection (product acceptance)", () => {
+  /** Path to the real dist/index.html fixture (used as the base for mutations). */
+  const DIST_HTML = path.resolve(__dirname, "..", "dist", "index.html");
+
+  /**
+   * Write `content` to a temp file and return its path.
+   * The caller is responsible for unlinking it after use.
+   */
+  function writeTmp(content: string, suffix = ".html"): string {
+    const p = path.join(os.tmpdir(), `check-sec-inject-${process.pid}-${Date.now()}${suffix}`);
+    fs.writeFileSync(p, content, "utf8");
+    return p;
+  }
+
+  it("exits 1 when <script>alert(1)</script> is injected into dist/index.html", () => {
+    // Read the clean fixture and append an inline script — the minimal mutation
+    // required to violate the no-inline-scripts check.
+    const clean = fs.readFileSync(DIST_HTML, "utf8");
+    const injected = clean.replace("</body>", "<script>alert(1)</script></body>");
+    const tmp = writeTmp(injected);
+    try {
+      const result = spawnSync(process.execPath, [SCRIPT], {
+        encoding: "utf8",
+        env: { ...process.env, CHECK_SECURITY_HTML: tmp },
+      });
+      expect(result.status).toBe(1);
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  it("prints a message containing 'inline-script' to stderr after injection", () => {
+    const clean = fs.readFileSync(DIST_HTML, "utf8");
+    const injected = clean.replace("</body>", "<script>alert(1)</script></body>");
+    const tmp = writeTmp(injected);
+    try {
+      const result = spawnSync(process.execPath, [SCRIPT], {
+        encoding: "utf8",
+        env: { ...process.env, CHECK_SECURITY_HTML: tmp },
+      });
+      // The check-name prefix [inline-script] and the per-check failure line
+      // both appear in stderr; either form satisfies the acceptance criterion.
+      expect(result.stderr).toMatch(/inline.script/i);
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  it("shows the 'N/5 checks passed, M failed' summary line on stderr after injection", () => {
+    const clean = fs.readFileSync(DIST_HTML, "utf8");
+    const injected = clean.replace("</body>", "<script>alert(1)</script></body>");
+    const tmp = writeTmp(injected);
+    try {
+      const result = spawnSync(process.execPath, [SCRIPT], {
+        encoding: "utf8",
+        env: { ...process.env, CHECK_SECURITY_HTML: tmp },
+      });
+      // Should see "4/5 checks passed, 1 failed" (only no-inline-scripts fails)
+      expect(result.stderr).toMatch(/\/5 checks passed.*failed/i);
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  it("lists ALL failing check names in stderr when multiple checks fail simultaneously", () => {
+    // Two independent violations:
+    //   1. Inline script in the HTML  → no-inline-scripts fails
+    //   2. 'unsafe-inline' in the CSP → csp-policy fails
+    // run() must NOT short-circuit after the first failure — it must run all
+    // checks and report both names so the developer can fix everything at once.
+
+    const clean = fs.readFileSync(DIST_HTML, "utf8");
+    const injectedHtml = clean.replace("</body>", "<script>alert(1)</script></body>");
+    const tmpHtml = writeTmp(injectedHtml, ".html");
+
+    // Build a headers file that adds 'unsafe-inline' to the CSP
+    const badHeaders = [
+      "/*",
+      "  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'",
+      "  X-Frame-Options: DENY",
+      "  X-Content-Type-Options: nosniff",
+      "  Referrer-Policy: strict-origin-when-cross-origin",
+      "  Permissions-Policy: geolocation=()",
+    ].join("\n");
+    const tmpHeaders = writeTmp(badHeaders, ".txt");
+
+    try {
+      const result = spawnSync(process.execPath, [SCRIPT], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CHECK_SECURITY_HTML: tmpHtml,
+          CHECK_SECURITY_HEADERS: tmpHeaders,
+        },
+      });
+      expect(result.status).toBe(1);
+      // Both failing check names must appear in the combined output so the
+      // developer is not forced to run the script twice to discover all issues.
+      expect(result.stderr).toMatch(/no-inline-scripts/);
+      expect(result.stderr).toMatch(/csp-policy/);
+    } finally {
+      fs.unlinkSync(tmpHtml);
+      fs.unlinkSync(tmpHeaders);
+    }
+  });
+});
+
 // ─── CLI output (run() and --help) ───────────────────────────────────────────
 
 describe("CLI output", () => {
