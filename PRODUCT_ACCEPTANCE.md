@@ -44,8 +44,8 @@ between Celsius, Fahrenheit, and Kelvin — both via direct tool calls and via n
 - [ ] `/healthz` still responds with updated agent name.
 
 ### Security
-- [ ] No secrets committed; ANTHROPIC_API_KEY loaded from environment.
-- [ ] Kelvin cannot go below 0 K (absolute zero guard).
+- [x] No secrets committed; ANTHROPIC_API_KEY loaded from environment.
+- [x] Kelvin cannot go below 0 K (absolute zero guard).
 
 ### Observability
 - [ ] Datadog dd_init integration preserved (no-ops without DD_API_KEY).

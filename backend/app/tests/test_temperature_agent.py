@@ -114,6 +114,19 @@ class TestConvertTemperature:
         with pytest.raises(ValueError, match="below absolute zero"):
             self.convert(-460, "fahrenheit", "celsius")
 
+    # --- NaN / Infinity guard ---
+    def test_nan_value_raises(self):
+        with pytest.raises(ValueError, match="finite number.*NaN"):
+            self.convert(float("nan"), "celsius", "kelvin")
+
+    def test_positive_infinity_raises(self):
+        with pytest.raises(ValueError, match="finite number.*Infinity"):
+            self.convert(float("inf"), "celsius", "kelvin")
+
+    def test_negative_infinity_raises(self):
+        with pytest.raises(ValueError, match="finite number.*Infinity"):
+            self.convert(float("-inf"), "celsius", "kelvin")
+
 
 class TestListSupportedUnits:
     """Tests for the list_supported_units tool function."""

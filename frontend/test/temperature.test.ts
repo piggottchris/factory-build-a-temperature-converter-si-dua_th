@@ -95,6 +95,25 @@ describe("convertTemperature", () => {
       convertTemperature(100, "celsius", "rankine" as TemperatureUnit)
     ).toThrow(/unsupported unit/i);
   });
+
+  // NaN / Infinity guard
+  it("throws on NaN input", () => {
+    expect(() => convertTemperature(NaN, "celsius", "fahrenheit")).toThrow(
+      /finite number.*NaN/i
+    );
+  });
+
+  it("throws on Infinity input", () => {
+    expect(() => convertTemperature(Infinity, "celsius", "kelvin")).toThrow(
+      /finite number.*Infinity/i
+    );
+  });
+
+  it("throws on negative Infinity input", () => {
+    expect(() => convertTemperature(-Infinity, "kelvin", "celsius")).toThrow(
+      /finite number.*Infinity/i
+    );
+  });
 });
 
 describe("listSupportedUnits", () => {

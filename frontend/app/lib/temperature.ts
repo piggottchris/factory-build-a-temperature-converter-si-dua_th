@@ -34,6 +34,14 @@ export function convertTemperature(
     throw new Error(`Unsupported unit: "${to}". Supported: ${SUPPORTED.join(", ")}`);
   }
 
+  // Reject IEEE 754 special values — NaN and Infinity are not physical temperatures
+  if (Number.isNaN(value)) {
+    throw new Error("Temperature value must be a finite number, got NaN.");
+  }
+  if (!Number.isFinite(value)) {
+    throw new Error("Temperature value must be a finite number, got Infinity.");
+  }
+
   const absZero = ABSOLUTE_ZERO[from];
   if (value < absZero - 1e-9) {
     throw new Error(

@@ -59,6 +59,8 @@ def convert_temperature(value: float, from_unit: str, to_unit: str) -> float:
     ValueError
         If either unit is unsupported or the input value is below absolute zero.
     """
+    import math as _math
+
     from_unit = from_unit.lower().strip()
     to_unit = to_unit.lower().strip()
 
@@ -66,6 +68,12 @@ def convert_temperature(value: float, from_unit: str, to_unit: str) -> float:
         raise ValueError(f"Unsupported unit: '{from_unit}'. Supported: {sorted(SUPPORTED_UNITS)}")
     if to_unit not in SUPPORTED_UNITS:
         raise ValueError(f"Unsupported unit: '{to_unit}'. Supported: {sorted(SUPPORTED_UNITS)}")
+
+    # Reject IEEE 754 special values — NaN and Infinity are not physical temperatures
+    if _math.isnan(value):
+        raise ValueError("Temperature value must be a finite number, got NaN.")
+    if _math.isinf(value):
+        raise ValueError("Temperature value must be a finite number, got Infinity.")
 
     # Absolute-zero guard
     abs_zero = ABSOLUTE_ZERO[from_unit]
