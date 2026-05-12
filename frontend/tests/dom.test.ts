@@ -357,6 +357,112 @@ describe("dom — input maxLength enforcement", () => {
 });
 
 // ---------------------------------------------------------------------------
+// 17. ± sign-toggle edge cases
+// ---------------------------------------------------------------------------
+
+describe("dom — ± sign-toggle: reverse toggle (-36.6 → 36.6)", () => {
+  beforeEach(setup);
+
+  it("toggles -36.6 → 36.6 and updates outputs", () => {
+    setInput("-36.6");
+    clickSign();
+    expect(el<HTMLInputElement>("celsius-input").value).toBe("36.6");
+    expect(el("fahrenheit-output").textContent).toBe("97.88 °F");
+    expect(el("kelvin-output").textContent).toBe("309.75 K");
+  });
+});
+
+describe("dom — ± sign-toggle on INVALID input", () => {
+  beforeEach(setup);
+
+  it("prepends minus to 'abc' making '-abc', which is still INVALID", () => {
+    setInput("abc");
+    clickSign();
+    // The value gets a minus prepended — still invalid
+    expect(el<HTMLInputElement>("celsius-input").value).toBe("-abc");
+    expect(el("error-slot").hidden).toBe(false);
+    expect(el("error-slot").textContent).toBe(FORMAT_ERROR_MSG);
+    expect(el("fahrenheit-output").textContent).toBe("—");
+  });
+
+  it("strips minus from '-abc' making 'abc', which is still INVALID", () => {
+    setInput("-abc");
+    clickSign();
+    expect(el<HTMLInputElement>("celsius-input").value).toBe("abc");
+    expect(el("error-slot").hidden).toBe(false);
+    expect(el("error-slot").textContent).toBe(FORMAT_ERROR_MSG);
+  });
+});
+
+describe("dom — ± sign-toggle on PENDING input '-'", () => {
+  beforeEach(setup);
+
+  it("strips the lone minus, producing EMPTY state (hint visible, outputs '—')", () => {
+    setInput("-");
+    clickSign();
+    // "-".startsWith("-") is true → slice(1) = "" → EMPTY
+    expect(el<HTMLInputElement>("celsius-input").value).toBe("");
+    expect(el("empty-hint").hidden).toBe(false);
+    expect(el("fahrenheit-output").textContent).toBe("—");
+    expect(el("kelvin-output").textContent).toBe("—");
+    expect(el("error-slot").hidden).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 18. Context line hidden when no prior valid value exists
+// ---------------------------------------------------------------------------
+
+describe("dom — context line: hidden when no prior valid value", () => {
+  beforeEach(setup);
+
+  it("context line stays hidden when 'abc' is the first input (no prior valid)", () => {
+    setInput("abc");
+    expect(el("context-line").hidden).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 19. PENDING state after INVALID: error slot clears
+// ---------------------------------------------------------------------------
+
+describe("dom — PENDING after INVALID: error disappears", () => {
+  beforeEach(setup);
+
+  it("error slot becomes hidden when pending '-' follows invalid 'abc'", () => {
+    setInput("abc"); // → INVALID: error visible
+    expect(el("error-slot").hidden).toBe(false);
+    setInput("-"); // → PENDING: error should hide
+    expect(el("error-slot").hidden).toBe(true);
+  });
+
+  it("outputs remain at '—' when pending '-' follows invalid 'abc'", () => {
+    setInput("abc");
+    setInput("-");
+    expect(el("fahrenheit-output").textContent).toBe("—");
+    expect(el("kelvin-output").textContent).toBe("—");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 20. Context line tracks the LAST valid value, not the first
+// ---------------------------------------------------------------------------
+
+describe("dom — context line shows last valid, not first", () => {
+  beforeEach(setup);
+
+  it("shows 77.00 °F / 298.15 K after valid 50 → valid 25 → invalid abc", () => {
+    setInput("50"); // lastValid = "122.00 °F · 323.15 K"
+    setInput("25"); // lastValid updated to "77.00 °F · 298.15 K"
+    setInput("abc");
+    expect(el("context-line").hidden).toBe(false);
+    expect(el("context-line").textContent).toBe(
+      "was: 77.00 °F · 298.15 K"
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 16. Reliability: init() null-guard — missing elements throw a clear error
 // ---------------------------------------------------------------------------
 

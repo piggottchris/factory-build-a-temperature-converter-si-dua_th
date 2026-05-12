@@ -78,12 +78,12 @@ Demo-mode / local-only. No authentication required. All validation is client-sid
 N/A for a pure test PR — no runtime observability hooks.
 
 ## Success Criteria
-- [ ] `frontend/lib/main.ts` exists and exports `init`, `FORMAT_ERROR_MSG`, `RANGE_ERROR_MSG`
-- [ ] `frontend/tests/dom.test.ts` exists and covers all scenarios above
-- [ ] All state-transition tests pass
-- [ ] All static-text tests pass
-- [ ] `npm test` exits 0 in `frontend/` (both test files green)
-- [ ] No existing tests broken (`convert.test.ts` and `example.test.tsx` still pass)
+- [x] `frontend/lib/main.ts` exists and exports `init`, `FORMAT_ERROR_MSG`, `RANGE_ERROR_MSG`
+- [x] `frontend/tests/dom.test.ts` exists and covers all scenarios above
+- [x] All state-transition tests pass
+- [x] All static-text tests pass
+- [x] `npm test` exits 0 in `frontend/` (both test files green)
+- [x] No existing tests broken (`convert.test.ts` and `example.test.tsx` still pass)
 
 ## Known Limitations
 _None at this time._
