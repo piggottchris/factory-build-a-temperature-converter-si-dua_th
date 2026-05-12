@@ -66,21 +66,23 @@ function initDom(): void {
     })
   }
 
-  // Expose setInputAriaError on window so the validation layer (issue #7) can
-  // call it without importing this module, keeping the coupling loose.
+  // Listen for a CustomEvent instead of exposing a global function.
+  // The validation layer (issue #7) should dispatch:
+  //   document.dispatchEvent(new CustomEvent('celsius-error', { detail: { hasError: true, message: '...' } }))
+  // This avoids polluting the window namespace and prevents any caller from
+  // directly manipulating the ARIA error state via a window-level handle.
   if (input && errorEl) {
-    type WindowWithHelper = Window & {
-      setInputAriaError: (inp: HTMLInputElement, hasErr: boolean) => void
-    }
-    ;(window as WindowWithHelper).setInputAriaError = (inp, hasErr) => {
-      setInputAriaError(inp, hasErr)
-      if (hasErr) {
+    document.addEventListener('celsius-error', (evt: Event) => {
+      const { hasError, message } = (evt as CustomEvent<{ hasError: boolean; message?: string }>).detail
+      setInputAriaError(input, hasError)
+      if (hasError) {
+        errorEl.textContent = typeof message === 'string' ? message : ''
         errorEl.removeAttribute('hidden')
       } else {
         errorEl.setAttribute('hidden', '')
         errorEl.textContent = ''
       }
-    }
+    })
   }
 }
 
