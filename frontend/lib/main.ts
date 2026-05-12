@@ -80,6 +80,21 @@ export function init(): void {
   // MAX_LENGTH is the same constant used by the parser, keeping the two in sync.
   input.maxLength = MAX_LENGTH;
 
+  // Accessibility: mark #error-slot as an ARIA live region so assistive
+  // technologies announce validation errors as soon as they appear, without
+  // the user having to navigate away from the input.
+  errorSlot.setAttribute("role", "alert");
+
+  // Accessibility: give the ± button an unambiguous label.  Screen readers
+  // vary in how they render the "±" glyph — some say "plus-minus sign", some
+  // say nothing.  An explicit aria-label removes the ambiguity.
+  signToggle.setAttribute("aria-label", "Toggle sign");
+
+  // Accessibility: label the output paragraphs so screen readers can identify
+  // them when the user navigates by element rather than by reading linearly.
+  fahrenheitOutput.setAttribute("aria-label", "Fahrenheit");
+  kelvinOutput.setAttribute("aria-label", "Kelvin");
+
   // Per-instance state — lives in the closure, never leaks between init() calls.
   let lastValidF = "";
   let lastValidK = "";

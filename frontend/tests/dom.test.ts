@@ -312,7 +312,33 @@ describe("dom — static copy text", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 14. Security: maxLength enforcement on #celsius-input
+// 14. Accessibility: ARIA attributes set by init()
+// ---------------------------------------------------------------------------
+
+describe("dom — accessibility: ARIA attributes", () => {
+  beforeEach(setup);
+
+  it("#error-slot has role='alert' so errors are announced by screen readers", () => {
+    expect(el("error-slot").getAttribute("role")).toBe("alert");
+  });
+
+  it("#sign-toggle has aria-label='Toggle sign'", () => {
+    expect(el("sign-toggle").getAttribute("aria-label")).toBe("Toggle sign");
+  });
+
+  it("#fahrenheit-output has aria-label='Fahrenheit'", () => {
+    expect(el("fahrenheit-output").getAttribute("aria-label")).toBe(
+      "Fahrenheit"
+    );
+  });
+
+  it("#kelvin-output has aria-label='Kelvin'", () => {
+    expect(el("kelvin-output").getAttribute("aria-label")).toBe("Kelvin");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 15. Security: maxLength enforcement on #celsius-input
 // ---------------------------------------------------------------------------
 
 describe("dom — input maxLength enforcement", () => {
