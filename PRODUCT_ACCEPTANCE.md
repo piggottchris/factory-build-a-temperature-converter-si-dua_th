@@ -19,13 +19,13 @@ A user on a 320 × 568 mobile device opens the temperature converter. The card f
 
 | # | Criterion | Status |
 |---|-----------|--------|
-| 1 | Viewport < 480 px: card `width: calc(100vw - 32px)` with 16 px horizontal margins | ⬜ |
-| 2 | Viewport < 480 px: top-aligned with `env(safe-area-inset-*)` padding | ⬜ |
-| 3 | Viewport ≥ 480 px: card `max-width: 420px`, centred via flexbox on `<body>` | ⬜ |
-| 4 | At 320 × 568: no horizontal scroll, input above the fold, all targets reachable | ⬜ |
-| 5 | Input and ± button: `min-height: 44px` and `min-width: 44px` | ⬜ |
-| 6 | Minimum text size `14px` everywhere inside the card | ⬜ |
-| 7 | Input `font-size ≥ 16px` at all breakpoints (prevents iOS Safari zoom) | ⬜ |
+| 1 | Viewport < 480 px: card `width: calc(100vw - 32px)` with 16 px horizontal margins | ✅ |
+| 2 | Viewport < 480 px: top-aligned with `env(safe-area-inset-*)` padding | ✅ |
+| 3 | Viewport ≥ 480 px: card `max-width: 420px`, centred via flexbox on `<body>` | ✅ |
+| 4 | At 320 × 568: no horizontal scroll, input above the fold, all targets reachable | ✅ |
+| 5 | Input and ± button: `min-height: 44px` and `min-width: 44px` | ✅ |
+| 6 | Minimum text size `14px` everywhere inside the card | ✅ |
+| 7 | Input `font-size ≥ 16px` at all breakpoints (prevents iOS Safari zoom) | ✅ |
 | 8 | Vitest tests green — CSS file existence and rule assertions | ✅ |
 
 ---

@@ -19,6 +19,15 @@
  *   "Cannot read properties of undefined" error.
  * - `propertyHasValue` uses a negative look-behind so that searching for
  *   "width" cannot accidentally match inside "max-width" or "min-width".
+ *
+ * Coverage notes (Pass 4):
+ * - `extractRuleBlock` pulls the first declaration block whose selector
+ *   matches a given pattern, enabling selector-scoped assertions.
+ * - `extractMediaBlock` pulls the body of the first @media rule whose
+ *   condition matches a given pattern, enabling media-query-scoped assertions.
+ * - Criteria 2, 3, and 5 now assert on scoped blocks rather than the whole
+ *   file, preventing a rule on the wrong selector from masking a missing one.
+ * - The `prefers-reduced-motion` block (added in Pass 2) is now tested.
  */
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
@@ -96,6 +105,62 @@ function propertyHasValue(
 }
 
 // ---------------------------------------------------------------------------
+// Helper: extract the declaration block (between `{` and `}`) for the first
+// rule whose selector matches `selectorPattern`.  Returns an empty string when
+// no matching rule is found.
+//
+// Operates on cssStripped so comment text cannot create false matches.
+// Only inspects top-level rules; declarations inside @media are not returned
+// unless the search is performed on a pre-extracted media block.
+// ---------------------------------------------------------------------------
+function extractRuleBlock(selectorPattern: RegExp): string {
+  // Walk cssStripped character by character to find the first `{` that follows
+  // a selector matching selectorPattern, then collect until the matching `}`.
+  // We track brace depth so nested blocks (e.g. @keyframes) are handled, but
+  // for CSS selectors a single-level scan is sufficient.
+  const re = new RegExp(selectorPattern.source + "\\s*\\{", selectorPattern.flags);
+  const m = re.exec(cssStripped);
+  if (!m) return "";
+  let depth = 1;
+  let i = m.index + m[0].length;
+  let body = "";
+  while (i < cssStripped.length && depth > 0) {
+    const ch = cssStripped[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") { depth--; if (depth === 0) break; }
+    body += ch;
+    i++;
+  }
+  return body;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: extract the body of the first @media rule whose condition matches
+// `conditionPattern`.  Returns an empty string when no matching block is found.
+//
+// Operates on cssStripped.
+// ---------------------------------------------------------------------------
+function extractMediaBlock(conditionPattern: RegExp): string {
+  const re = new RegExp(
+    "@media\\s*" + conditionPattern.source + "\\s*\\{",
+    conditionPattern.flags
+  );
+  const m = re.exec(cssStripped);
+  if (!m) return "";
+  let depth = 1;
+  let i = m.index + m[0].length;
+  let body = "";
+  while (i < cssStripped.length && depth > 0) {
+    const ch = cssStripped[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") { depth--; if (depth === 0) break; }
+    body += ch;
+    i++;
+  }
+  return body;
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -125,8 +190,10 @@ describe("src/styles.css — mobile-first (<480 px) card layout", () => {
     expect(ok).toBe(true);
   });
 
-  it("uses env(safe-area-inset-*) for top-edge padding", () => {
-    expect(cssStripped).toMatch(/env\(\s*safe-area-inset-/);
+  it("uses env(safe-area-inset-*) for padding specifically on body (criterion 2)", () => {
+    // Must appear inside the `body { … }` rule, not just anywhere in the file.
+    const bodyBlock = extractRuleBlock(/body/);
+    expect(bodyBlock).toMatch(/env\(\s*safe-area-inset-/);
   });
 });
 
@@ -135,11 +202,19 @@ describe("src/styles.css — desktop (≥480 px) card layout", () => {
     expect(cssStripped).toMatch(/@media\s*\(\s*min-width\s*:\s*480px\s*\)/);
   });
 
-  it("caps card max-width at 420px inside the 480px breakpoint", () => {
-    // Accept literal 420px or a var that resolves to 420px
-    const hasDirect = /max-width\s*:\s*420px/.test(cssStripped);
-    const hasVarBased = propertyHasValue("max-width", (v) => v === "420px");
-    expect(hasDirect || hasVarBased).toBe(true);
+  it("caps card max-width at 420px INSIDE the 480px breakpoint (criterion 3)", () => {
+    // Must be inside `@media (min-width: 480px)`, not just anywhere in the file.
+    const mediaBody = extractMediaBlock(/\(\s*min-width\s*:\s*480px\s*\)/);
+    expect(mediaBody).not.toBe("");
+
+    // Accept literal 420px or a var whose :root value resolves to 420px.
+    const hasDirectInMedia = /max-width\s*:\s*420px/.test(mediaBody);
+    const hasVarInMedia = (() => {
+      const varMatch = mediaBody.match(/max-width\s*:\s*var\((--[\w-]+)\)/);
+      if (!varMatch) return false;
+      return resolveVar(varMatch[1]) === "420px";
+    })();
+    expect(hasDirectInMedia || hasVarInMedia).toBe(true);
   });
 
   it("centres the card with flexbox on body or a wrapper inside the 480px breakpoint", () => {
@@ -150,14 +225,40 @@ describe("src/styles.css — desktop (≥480 px) card layout", () => {
 });
 
 describe("src/styles.css — tap-target minimums (44×44 px)", () => {
-  it("sets min-height: 44px for interactive elements", () => {
-    const ok = propertyHasValue("min-height", (v) => v === "44px");
-    expect(ok).toBe(true);
+  // Criterion 5: min-height and min-width must be on `input, .btn` (or either
+  // selector individually), not just some other element in the stylesheet.
+  it("sets min-height: 44px on input and/or .btn specifically (criterion 5)", () => {
+    // The selector rule may be combined ("input,\n.btn") or split.
+    const inputBtnBlock =
+      extractRuleBlock(/input\s*,\s*\n?\s*\.btn/) ||
+      extractRuleBlock(/input/) ||
+      extractRuleBlock(/\.btn/);
+    expect(inputBtnBlock).not.toBe("");
+
+    // Check literal value or a var that resolves to 44px.
+    const hasDirectMinH = /(?<![a-z-])min-height\s*:\s*44px/.test(inputBtnBlock);
+    const hasVarMinH = (() => {
+      const varMatch = inputBtnBlock.match(/(?<![a-z-])min-height\s*:\s*var\((--[\w-]+)\)/);
+      if (!varMatch) return false;
+      return resolveVar(varMatch[1]) === "44px";
+    })();
+    expect(hasDirectMinH || hasVarMinH).toBe(true);
   });
 
-  it("sets min-width: 44px for interactive elements", () => {
-    const ok = propertyHasValue("min-width", (v) => v === "44px");
-    expect(ok).toBe(true);
+  it("sets min-width: 44px on input and/or .btn specifically (criterion 5)", () => {
+    const inputBtnBlock =
+      extractRuleBlock(/input\s*,\s*\n?\s*\.btn/) ||
+      extractRuleBlock(/input/) ||
+      extractRuleBlock(/\.btn/);
+    expect(inputBtnBlock).not.toBe("");
+
+    const hasDirectMinW = /(?<![a-z-])min-width\s*:\s*44px/.test(inputBtnBlock);
+    const hasVarMinW = (() => {
+      const varMatch = inputBtnBlock.match(/(?<![a-z-])min-width\s*:\s*var\((--[\w-]+)\)/);
+      if (!varMatch) return false;
+      return resolveVar(varMatch[1]) === "44px";
+    })();
+    expect(hasDirectMinW || hasVarMinW).toBe(true);
   });
 });
 
@@ -174,5 +275,26 @@ describe("src/styles.css — text size minimums", () => {
       return !isNaN(px) && px >= 16;
     });
     expect(passes).toBe(true);
+  });
+});
+
+describe("src/styles.css — reduced-motion guard (added Pass 2)", () => {
+  it("has a @media (prefers-reduced-motion: reduce) block", () => {
+    // Verify the block exists at all.
+    expect(cssStripped).toMatch(
+      /@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/
+    );
+  });
+
+  it("zeroes animation-duration inside prefers-reduced-motion block", () => {
+    const block = extractMediaBlock(/\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/);
+    expect(block).not.toBe("");
+    expect(block).toMatch(/animation-duration\s*:/);
+  });
+
+  it("zeroes transition-duration inside prefers-reduced-motion block", () => {
+    const block = extractMediaBlock(/\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)/);
+    expect(block).not.toBe("");
+    expect(block).toMatch(/transition-duration\s*:/);
   });
 });

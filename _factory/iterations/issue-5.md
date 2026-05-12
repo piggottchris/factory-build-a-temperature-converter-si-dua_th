@@ -1,3 +1,22 @@
+## Iteration 4 — Test and Evaluation Coverage: scope assertions to correct selectors and media blocks
+
+- Critique:
+  (a) Criterion 2 (`env(safe-area-inset-*)` on `body`): the test matched anywhere in the file. A future developer could move the `env()` call to a non-`body` rule and the test would still pass, masking the regression.
+  (b) Criterion 3 (`max-width: 420px` inside `@media (min-width: 480px)`): the test matched anywhere in the file. A `max-width: 420px` on `.card` outside the media query would satisfy the old test even though the breakpoint rule had been removed.
+  (c) Criterion 5 (`min-height`/`min-width: 44px` on `input, .btn`): the tests matched any element in the file. `body { min-height: 100vh }` was present in the file; a sufficiently broad predicate could have matched that instead of the tap-target rule.
+  (d) The `prefers-reduced-motion: reduce` block added in Pass 2 had no test at all — neither for block existence nor for the specific properties zeroed inside it.
+
+- Change:
+  (a) Added two new helper functions, `extractRuleBlock(selectorPattern)` and `extractMediaBlock(conditionPattern)`, that walk the comment-stripped CSS character by character, matching brace depth so they return exactly the body of the first rule/media-query whose selector/condition matches the given pattern.
+  (b) Updated the criterion 2 test to run against `extractRuleBlock(/body/)` — asserts `env(safe-area-inset-*)` appears in the `body` declaration block specifically.
+  (c) Replaced the criterion 3 test to run against `extractMediaBlock(/\(min-width: 480px\)/)` — asserts `max-width: 420px` (literal or via var) is inside the `@media` body only.
+  (d) Replaced the criterion 5 tests to run against `extractRuleBlock(/input\s*,\s*\n?\s*\.btn/)` (falling back to individual `input` or `.btn` blocks) — asserts `min-height`/`min-width` with 44px value is on the interactive-element rule specifically, with var resolution.
+  (e) Added a new describe block "reduced-motion guard" with three tests: block existence, `animation-duration` presence inside the block, and `transition-duration` presence inside the block.
+  (f) Ticked acceptance criteria 1–7 in PRODUCT_ACCEPTANCE.md now that every CSS rule they reference has a scoped, meaningful test.
+
+- Files touched: frontend/test/styles.test.ts, PRODUCT_ACCEPTANCE.md, _factory/iterations/issue-5.md
+- Tests: 16 vitest passed / 0 failed (was 13/0); 2 pytest passed / 0 failed
+
 ## Iteration 3 — Backend Reliability: harden test helpers against comment false-positives and missing-file failures
 
 - Critique:
