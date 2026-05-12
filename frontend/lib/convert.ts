@@ -44,9 +44,9 @@ const COMPLETE_NUMBER_RE = /^-?(\d+\.\d+|\.\d+|\d+)$/;
 
 /**
  * Patterns that represent an *incomplete* number a user may still be typing.
- * These are checked after trimming and before format validation.
+ * A Set gives O(1) membership tests and is cleaner than an array includes().
  */
-const PENDING_PATTERNS = ["-", ".", "-.", "-0"];
+const PENDING_EXACT = new Set(["-", ".", "-.", "-0"]);
 
 /**
  * Matches a number that ends with a trailing decimal point, e.g. "1." or "-1.".
@@ -73,7 +73,7 @@ export function parseTemperature(raw: string): ParseResult {
   if (s.length > MAX_LENGTH) return { status: "invalid", reason: "format" };
 
   // 3. Pending — user is still typing
-  if (PENDING_PATTERNS.includes(s) || TRAILING_DOT_RE.test(s)) {
+  if (PENDING_EXACT.has(s) || TRAILING_DOT_RE.test(s)) {
     return { status: "pending" };
   }
 
