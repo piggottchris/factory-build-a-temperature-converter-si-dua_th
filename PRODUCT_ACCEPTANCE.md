@@ -86,4 +86,9 @@ N/A for a pure test PR — no runtime observability hooks.
 - [x] No existing tests broken (`convert.test.ts` and `example.test.tsx` still pass)
 
 ## Known Limitations
-_None at this time._
+
+1. **No visual UI shipped in this PR** — `lib/main.ts` is wired up as a tested library; `app/page.tsx` still renders the scaffold haiku-agent chat UI and does not include the temperature-converter HTML elements. A follow-on PR would add the HTML fixture to `page.tsx` and call `init()` on mount.
+
+2. **No backend changes** — all conversion logic is client-side in `lib/convert.ts`. There is no server-side validation endpoint, no persistence, and no API contract with the FastAPI backend.
+
+3. **No observability hooks** — this is a pure frontend test PR; no runtime metrics, logging, or error-reporting are included.
