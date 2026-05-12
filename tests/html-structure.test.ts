@@ -43,6 +43,35 @@ describe('head metadata', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Content Security Policy
+// ---------------------------------------------------------------------------
+describe('Content-Security-Policy meta tag', () => {
+  it('has a CSP meta http-equiv tag', () => {
+    const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]')
+    expect(csp).not.toBeNull()
+  })
+
+  it("CSP disallows default-src 'none'", () => {
+    const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]')
+    expect(csp?.getAttribute('content')).toMatch(/default-src\s+'none'/)
+  })
+
+  it("CSP restricts script-src to 'self' only", () => {
+    const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]')
+    const content = csp?.getAttribute('content') ?? ''
+    expect(content).toMatch(/script-src\s+'self'/)
+    // Must NOT allow unsafe-inline or unsafe-eval
+    expect(content).not.toMatch(/unsafe-inline/)
+    expect(content).not.toMatch(/unsafe-eval/)
+  })
+
+  it("CSP sets frame-ancestors 'none' (clickjacking defence)", () => {
+    const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]')
+    expect(csp?.getAttribute('content')).toMatch(/frame-ancestors\s+'none'/)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // External assets only — no inline script or style
 // ---------------------------------------------------------------------------
 describe('no inline scripts or styles', () => {
