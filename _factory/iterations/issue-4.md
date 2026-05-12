@@ -1,3 +1,17 @@
+## Iteration 3 — Backend Reliability: fix tsc strict-mode failures and add check:types script
+
+- Critique: `tsc --noEmit` exited with 5 errors under strict mode, making the project silently broken from a TypeScript perspective:
+  1. Three stub test files (`tests/a11y.test.ts`, `tests/convert.test.ts`, `tests/dom.test.ts`) imported `it` from vitest but never used it. With `noUnusedLocals: true` this is a hard error. These stubs only call `describe.todo`, so `it` was an accidental leftover that would trip any future TypeScript-aware CI step.
+  2. `tests/html-structure.test.ts` uses `node:fs`, `node:path`, and `__dirname`, but `@types/node` was not in `devDependencies`. TypeScript could not resolve these node built-in declarations.
+  3. `jsdom` was used directly in `html-structure.test.ts` with no type declarations — `@types/jsdom` was also absent, causing `Could not find a declaration file for module 'jsdom'` errors. 
+  4. There was no `check:types` script in `package.json`, so `tsc --noEmit` was never surfaced as a runnable step. Vite's build pipeline does not run `tsc`, so these errors were invisible during normal development.
+- Change:
+  - Installed `@types/node` and `@types/jsdom` as dev dependencies (via `pnpm add -D`).
+  - Removed the unused `it` import from the three stub test files, replacing `import { describe, it }` with `import { describe }`.
+  - Added `"check:types": "tsc --noEmit"` to the `scripts` section of `package.json`. `tsc --noEmit` now exits 0.
+- Files touched: `package.json`, `pnpm-lock.yaml`, `tests/a11y.test.ts`, `tests/convert.test.ts`, `tests/dom.test.ts`
+- Tests: 16 passed before → 16 passed after (no regressions); `tsc --noEmit` 5 errors before → 0 errors after
+
 ## Iteration 2 — UX/Product Polish: strengthen heading hierarchy and dim em-dash placeholders
 
 - Critique: Two interrelated visual-hierarchy gaps existed.

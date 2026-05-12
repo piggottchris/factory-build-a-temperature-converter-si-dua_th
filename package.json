@@ -13,12 +13,15 @@
     "test:watch": "vitest",
     "test:a11y": "vitest run tests/a11y.test.ts",
     "test:network": "playwright test tests/network.spec.ts",
+    "check:types": "tsc --noEmit",
     "check:bundle": "node scripts/check-bundle.js",
     "check:security": "node scripts/check-security.js"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.9.0",
     "@playwright/test": "^1.44.0",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^25.7.0",
     "@vitejs/plugin-legacy": "^5.4.0",
     "axe-core": "^4.9.0",
     "jsdom": "^25.0.0",
