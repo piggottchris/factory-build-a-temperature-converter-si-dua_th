@@ -71,26 +71,56 @@ function measureFiles(filePaths) {
   const sizes = [];
 
   for (const filePath of filePaths) {
-    const stat = fs.lstatSync(filePath);
+    const name = path.basename(filePath);
+
+    /** @type {import("fs").Stats} */
+    let stat;
+    try {
+      stat = fs.lstatSync(filePath);
+    } catch (/** @type {any} */ err) {
+      // Race condition: file was deleted (ENOENT) or is unreadable (EACCES)
+      // between readdirSync and lstatSync. Warn and skip rather than crash.
+      warnings.push(
+        `check-bundle: skipping ${name} (lstat failed: ${err.code || err.message})`
+      );
+      continue;
+    }
 
     if (stat.isSymbolicLink()) {
-      warnings.push(
-        `check-bundle: skipping symlink ${path.basename(filePath)}`
-      );
+      warnings.push(`check-bundle: skipping symlink ${name}`);
+      continue;
+    }
+
+    if (stat.isDirectory()) {
+      // A directory whose name ends in ".js" or ".css" (unusual but possible)
+      // would cause readFileSync to throw EISDIR. Skip it explicitly.
+      warnings.push(`check-bundle: skipping directory entry ${name}`);
       continue;
     }
 
     if (stat.size > MAX_RAW_FILE_BYTES) {
       warnings.push(
-        `check-bundle: skipping oversized file ${path.basename(filePath)} ` +
+        `check-bundle: skipping oversized file ${name} ` +
           `(${stat.size} B > ${MAX_RAW_FILE_BYTES} B limit)`
       );
       continue;
     }
 
-    const gzip = gzipSize(fs.readFileSync(filePath));
+    /** @type {Buffer} */
+    let content;
+    try {
+      content = fs.readFileSync(filePath);
+    } catch (/** @type {any} */ err) {
+      // File may have been deleted or its permissions changed after lstatSync.
+      warnings.push(
+        `check-bundle: skipping ${name} (read failed: ${err.code || err.message})`
+      );
+      continue;
+    }
+
+    const gzip = gzipSize(content);
     total += gzip;
-    sizes.push({ name: path.basename(filePath), gzip });
+    sizes.push({ name, gzip });
   }
 
   return { sizes, total, warnings };
@@ -130,7 +160,19 @@ function checkBundles(distDir) {
     };
   }
 
-  const entries = fs.readdirSync(distDir);
+  /** @type {string[]} */
+  let entries;
+  try {
+    entries = fs.readdirSync(distDir);
+  } catch (/** @type {any} */ err) {
+    // Directory exists but cannot be read (e.g. EACCES — permission denied).
+    // Return a clean named error rather than crashing with a raw stack trace.
+    return {
+      ok: false,
+      stdout: "",
+      stderr: `check-bundle: cannot read directory ${distDir} (${err.code || err.message})\n`,
+    };
+  }
   const toAbsolute = (/** @type {string} */ f) => path.join(distDir, f);
 
   const js = measureFiles(

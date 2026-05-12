@@ -1,3 +1,45 @@
+## Iteration 3 — Backend Reliability: safe error handling for I/O failures and directory entries
+
+- Critique: Three failure modes could turn `check-bundle.js` from a clean exit-1 signal into
+  a raw Node.js crash with an unformatted stack trace on stderr and an undefined exit code:
+  (a) **`fs.readdirSync` EACCES** — `fs.existsSync` checks F_OK (file exists), not R_OK
+  (readable). A directory that exists but has mode 000 passes the `existsSync` guard and then
+  throws at `readdirSync`. The error was completely uncaught, producing a raw stack trace to
+  stderr and an implicitly-set exit code of 1 only by Node's default unhandled-exception
+  handler — a fragile contract for CI consumers.
+  (b) **`fs.lstatSync` ENOENT / EACCES** — a file deleted in the brief window between
+  `readdirSync` and `lstatSync` (race condition) would throw an unhandled error. Same for
+  a file added to the directory with no-read permissions.
+  (c) **`fs.readFileSync` EISDIR** — `readdirSync` returns all entries including
+  subdirectories. A directory whose name ends in `.js` or `.css` (unusual but not impossible,
+  e.g. a bundler that co-locates chunks in a same-named folder) passes the `.endsWith`
+  filter, passes `lstatSync` as a regular entry (it is not a symlink, not oversized), and
+  then causes `readFileSync` to throw `EISDIR`.
+
+- Change: Four targeted additions maintaining the established "warn and continue" pattern:
+  1. **`readdirSync` guard in `checkBundles`**: wrapped in try/catch. On failure returns
+     `{ ok: false, stderr: "check-bundle: cannot read directory ... (EACCES)\n" }` — clean
+     exit 1 with a named message, no raw stack trace.
+  2. **`lstatSync` guard in `measureFiles`**: wrapped in try/catch that pushes a warning
+     `"check-bundle: skipping <name> (lstat failed: ENOENT)"` and continues to the next
+     file. Race conditions no longer crash the process.
+  3. **`isDirectory()` guard in `measureFiles`**: explicit check after the symlink check,
+     before the size check and `readFileSync`. A `.js`-named directory is warned about and
+     skipped; `readFileSync` is never called on it.
+  4. **`readFileSync` guard in `measureFiles`**: secondary try/catch for the case where a
+     file's permissions change between `lstatSync` and `readFileSync` (toctou). Pushes a
+     warning `"check-bundle: skipping <name> (read failed: EACCES)"` and continues.
+  Added 3 new tests:
+  - `skips a directory entry whose name ends in .js rather than crashing (EISDIR guard)`
+  - `skips a directory entry whose name ends in .css rather than crashing (EISDIR guard)`
+  - `exits 1 with a named error message when the assets directory is not readable (EACCES)`
+
+- Files touched:
+  - `/sandbox/work/issue-17/frontend/scripts/check-bundle.js`
+  - `/sandbox/work/issue-17/frontend/tests/check-bundle.test.ts`
+
+- Tests: 80 passed before → 83 passed after (3 new reliability tests added, all green, no regressions)
+
 ## Iteration 2 — UX/Product Polish: "0 files checked" label and Next.js path hint on vacuous pass
 
 - Critique: `checkBundles` printed bare `check-bundle PASSED` or the terse "not found — skipping"

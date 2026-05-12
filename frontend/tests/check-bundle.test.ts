@@ -12,9 +12,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   mkdtempSync,
+  mkdirSync,
   writeFileSync,
   symlinkSync,
   rmSync,
+  chmodSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -228,5 +230,50 @@ describe("check-bundle script", () => {
     const result = runScript(tmpDir);
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain("oversized");
+  });
+
+  // -------------------------------------------------------------------------
+  // Backend reliability: error handling on directory entries
+  // -------------------------------------------------------------------------
+
+  it("skips a directory entry whose name ends in .js rather than crashing (EISDIR guard)", () => {
+    // A subdirectory named "chunk.js" in the assets dir is unusual but possible
+    // (e.g. a bundler that colocates chunks in a same-named folder).
+    // Without a guard, readFileSync would throw EISDIR.
+    mkdirSync(join(tmpDir, "chunk.js"));
+    writeFileSync(join(tmpDir, "main.js"), 'console.log("ok")');
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(0);
+    // The directory entry must be warned about, not silently counted
+    expect(result.stdout).toContain("directory entry");
+    // The real file is still measured
+    expect(result.stdout).toContain("main.js");
+  });
+
+  it("skips a directory entry whose name ends in .css rather than crashing (EISDIR guard)", () => {
+    mkdirSync(join(tmpDir, "styles.css"));
+    writeFileSync(join(tmpDir, "main.css"), "body{color:red}");
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("directory entry");
+  });
+
+  it("exits 1 with a named error message when the assets directory is not readable (EACCES)", () => {
+    // Skip on environments where the test runner is root (root ignores chmod).
+    const uid = process.getuid ? process.getuid() : -1;
+    if (uid === 0) return;
+
+    // Make the directory unreadable
+    chmodSync(tmpDir, 0o000);
+    try {
+      const result = runScript(tmpDir);
+      // Should exit 1 (cannot read directory) with a clean message, not a raw crash
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("cannot read directory");
+      expect(result.stderr).toContain("EACCES");
+    } finally {
+      // Restore permissions so afterEach rmSync can clean up
+      chmodSync(tmpDir, 0o755);
+    }
   });
 });
