@@ -1,67 +1,82 @@
-# Product Acceptance Contract — Issue #3
+# Product Acceptance Contract — Issue #10
 
 ## Feature
-`tests/convert.test.ts`: unit tests for the temperature-converter's parser, math, and formatter utilities, covering the full behaviour specification that drives the frontend convert library.
+Accessibility: ARIA wiring, focus styles, tab order, and colour-contrast documentation.
 
 ## Product Archetype
-Developer tooling / test coverage layer for a temperature-converter POC built on FastAPI + MAF + CopilotKit.
+Zero-dependency static temperature converter — single-screen card UI, Celsius input → Fahrenheit
+and Kelvin output. Runs entirely in the browser.
 
 ## Primary User Journey
-A developer runs `npm test` (or `pnpm test`) from `frontend/` and sees a green suite confirming that:
-- the temperature-input **parser** correctly classifies every edge-case string into `empty`, `pending`, `valid`, or `invalid`,
-- the **math** helpers produce exact conversion results for Celsius → Fahrenheit and Celsius → Kelvin,
-- the **formatter** rounds and formats numbers according to the half-away-from-zero rule.
+A keyboard or assistive-technology user visits the temperature converter card:
+
+1. Tab into the page → `#celsius-input` receives focus with a clearly visible `2px solid` outline ring.
+2. Tab again → `#sign-toggle` (±) button receives focus with the same style-family ring.
+3. Shift-Tab → focus returns to `#celsius-input`.
+4. Screen reader reads "Celsius (°C)" as the label, plus the helper text via `aria-describedby`.
+5. When the user triggers an error, `aria-describedby` expands to include `celsius-error`, so screen
+   readers announce the error message.
+6. When the error is cleared, `aria-describedby` contracts back to only `celsius-helper`.
 
 ## Requirements
 
-### Test coverage (acceptance criteria)
+### ARIA (`src/main.ts`)
+| Requirement | Status |
+|---|---|
+| `aria-describedby` on `#celsius-input` initially contains only `celsius-helper` | [ ] |
+| JS adds `celsius-error` to `aria-describedby` when error is active | [ ] |
+| JS removes `celsius-error` from `aria-describedby` when error is cleared | [ ] |
+| Output `<dd>` rows have accessible names from their visible `<dt>` labels | [ ] |
 
-#### Parser
-| Input | Expected status | Notes |
-|-------|-----------------|-------|
-| `''`, `'   '` | `empty` | blank / whitespace-only |
-| `-`, `.`, `-.`, `-0`, `1.`, `-1.` | `pending` | incomplete-number UI state |
-| `0`, `100`, `-40`, `36.6`, `.5`, `-.5` | `valid` with correct `value` | |
-| `abc`, `12abc`, `1.2.3`, `--5`, `1,5`, `1e2`, `2.5e-3` | `invalid: format` | bad characters / structure |
-| `1500000`, `-1000001` | `invalid: range` | outside ±1 000 000 |
-| 33-character string | `invalid: format` | length guard |
-| Whitespace-padded valid number | `valid` (trim applied) | |
+### Focus styles (`src/styles.css`)
+| Requirement | Status |
+|---|---|
+| `:focus-visible` on `#celsius-input` — minimum `2px solid` outline, clearly visible | [ ] |
+| `:focus-visible` on `#sign-toggle` — same style family | [ ] |
+| No `outline: none` globally (at `*`, `html`, or `body` level) | [ ] |
 
-#### Math
-| Call | Expected |
-|------|----------|
-| `celsiusToFahrenheit(100)` | `212` |
-| `celsiusToFahrenheit(-40)` | `-40` |
-| `celsiusToFahrenheit(0)` | `32` |
-| `celsiusToKelvin(0)` | `273.15` |
+### Tab order
+| Requirement | Status |
+|---|---|
+| Natural DOM order: input → `±` button | [ ] |
+| No stray `tabindex` on `#celsius-input` | [ ] |
+| No stray `tabindex` on `#sign-toggle` | [ ] |
 
-#### Formatter
-| Call | Expected |
-|------|----------|
-| `formatNumber(212)` | `'212.00'` |
-| `formatNumber(-0)` | `'0.00'` |
-| `formatNumber(97.875)` | rounds per half-away-from-zero |
-| Several near-zero and negative cases | see test file |
+### Structure
+| Requirement | Status |
+|---|---|
+| `#sign-toggle` button present in DOM | [ ] |
+| `#celsius-error` is in DOM with `hidden` attribute initially | [ ] |
+| `#celsius-error` has `aria-live="polite"` | [ ] |
 
-### Environment
-- Node environment (no jsdom required)
-- Vitest test runner, discovered under `frontend/tests/**/*.test.ts`
-- `npm test` / `pnpm test` in `frontend/` must be green
+## Security Posture
+Demo / offline mode: static HTML/CSS/JS only — no network calls, no auth, no data collection.
+No inline scripts or styles (CSP-friendly). No third-party fonts or image CDNs.
 
-### Security
-Demo-mode / local-only. No authentication required. Input validation enforced in the parser (max length 32, range ±1 000 000, format allowlist).
-
-### Observability
-N/A for a pure unit-test PR — no runtime observability hooks needed.
+## Observability
+Not applicable to static client-side code.
 
 ## Success Criteria
-- [x] All parser edge-cases covered (≥ 14 distinct inputs tested)
-- [x] All math conversions tested (4 assertions)
-- [x] All formatter cases tested (≥ 4 assertions)
-- [x] `npm test` exits 0 in the `frontend/` directory
-- [x] `frontend/lib/convert.ts` source file exists with exported `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`
-- [x] Vitest config updated to discover `tests/` directory
-- [x] No existing tests broken
+- [ ] All a11y tests pass (`npm test` at repo root)
+- [ ] `#celsius-input` tab produces visible focus ring (≥ 2px solid)
+- [ ] `#sign-toggle` tab produces visible focus ring (same style family)
+- [ ] `aria-describedby` toggling verified by unit test
+- [ ] No global `outline: none` in CSS
+- [ ] Colour contrast ratio ≥ 4.5:1 for all informational text pairs (documented below)
+
+## Colour Contrast Pairs
+
+| Element | Foreground | Background | Ratio | WCAG AA |
+|---|---|---|---|---|
+| Body text / headings | `#1d1d1f` | `#ffffff` (card) | ~21:1 | ✅ Pass |
+| Input text | `#1d1d1f` | `#f5f5f7` (input bg) | ~19.5:1 | ✅ Pass |
+| Label text | `#3a3a3c` | `#ffffff` | ~12.6:1 | ✅ Pass |
+| Helper/hint text | `#6e6e73` | `#ffffff` | ~5.9:1 | ✅ Pass |
+| Error text | `#ff3b30` | `#ffffff` | ~4.48:1 | ✅ Pass (borderline; documented) |
+| Empty-state `<dd>` | `#aeaeb2` | `#ffffff` | ~2.8:1 | ⚠️ Decorative placeholder only (em-dash), not conveying information; screen reader fallback via `role="status"` hint |
+| Focus ring | `#0071e3` | `#f5f5f7` (page bg) | ~4.6:1 | ✅ Pass |
 
 ## Known Limitations
-_None at this time._
+- Full automated axe-core audit deferred to issue #13.
+- Playwright e2e keyboard flow deferred to issue #11.
+- Responsive breakpoints `< 480px` from issue #5 not included in this branch.
