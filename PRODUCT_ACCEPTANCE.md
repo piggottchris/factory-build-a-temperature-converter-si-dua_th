@@ -62,14 +62,14 @@ Demo-mode / local-only. The script itself is a pure static analyser — no netwo
 N/A — this is a static analysis script. Exit codes and stdout messages are the observability signal.
 
 ## Success Criteria
-- [ ] `frontend/scripts/check-security.js` exists and exports all five check functions
-- [ ] `frontend/dist/index.html` exists as a compliant security fixture
-- [ ] `frontend/_headers` exists with all five required security response headers
-- [ ] `"check:security"` script added to `frontend/package.json`
-- [ ] `npm run check:security` exits 0 on the clean fixture
+- [x] `frontend/scripts/check-security.js` exists and exports all five check functions
+- [x] `frontend/dist/index.html` exists as a compliant security fixture
+- [x] `frontend/_headers` exists with all five required security response headers
+- [x] `"check:security"` script added to `frontend/package.json`
+- [x] `npm run check:security` exits 0 on the clean fixture
 - [ ] Injecting `<script>alert(1)</script>` into `dist/index.html` causes exit 1
-- [ ] All vitest tests in `test/check-security.test.ts` pass
-- [ ] No existing tests broken (`convert.test.ts`, `dom.test.ts`, `example.test.tsx` still pass)
+- [x] All vitest tests in `test/check-security.test.ts` pass
+- [x] No existing tests broken (`convert.test.ts`, `dom.test.ts`, `example.test.tsx` still pass)
 
 ## Known Limitations
 None identified at contract-creation time. Will be updated if any are discovered during implementation.

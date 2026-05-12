@@ -265,6 +265,7 @@ function _readArtefact(filePath) {
 
 function run() {
   const errors = [];
+  let passed = 0;
 
   // ── Load artefacts ─────────────────────────────────────────────────────────
   const html          = _readArtefact(DIST_HTML);
@@ -272,28 +273,32 @@ function run() {
 
   // ── Run checks ────────────────────────────────────────────────────────────
   const checks = [
-    () => checkNoInlineStyles(html),
-    () => checkNoInlineScripts(html),
-    () => checkSRI(html),
-    () => checkSecurityHeaders(headersContent),
-    () => checkCSP(headersContent),
+    { name: 'no-inline-styles',   fn: () => checkNoInlineStyles(html) },
+    { name: 'no-inline-scripts',  fn: () => checkNoInlineScripts(html) },
+    { name: 'sri-attributes',     fn: () => checkSRI(html) },
+    { name: 'security-headers',   fn: () => checkSecurityHeaders(headersContent) },
+    { name: 'csp-policy',         fn: () => checkCSP(headersContent) },
   ];
 
-  for (const check of checks) {
+  for (const { name, fn } of checks) {
     try {
-      check();
+      fn();
+      passed++;
+      console.log(`  ✓  ${name}`);
     } catch (err) {
-      errors.push(err.message);
+      errors.push({ name, message: err.message });
+      console.error(`  ✗  ${name}`);
     }
   }
 
   // ── Report ────────────────────────────────────────────────────────────────
+  const total = checks.length;
   if (errors.length === 0) {
-    console.log('[check-security] All checks passed ✓');
+    console.log(`\n[check-security] ${passed}/${total} checks passed`);
     process.exit(0);
   } else {
-    console.error(`[check-security] ${errors.length} check(s) failed:\n`);
-    errors.forEach((msg) => console.error(`  ✗ ${msg}\n`));
+    console.error(`\n[check-security] ${passed}/${total} checks passed, ${errors.length} failed:\n`);
+    errors.forEach(({ name, message }) => console.error(`  ${name}: ${message}\n`));
     process.exit(1);
   }
 }
@@ -311,5 +316,28 @@ module.exports = {
 };
 
 if (require.main === module) {
+  const arg = process.argv[2];
+  if (arg === '--help' || arg === '-h') {
+    console.log([
+      '',
+      'Usage: node scripts/check-security.js [--help]',
+      '',
+      'Static CI validator for the temperature-converter POC.',
+      'Reads dist/index.html and _headers relative to the frontend/ directory.',
+      '',
+      'Checks (run in order):',
+      '  no-inline-styles   — no <style> tags in dist/index.html',
+      '  no-inline-scripts  — no inline <script> content in dist/index.html',
+      '  sri-attributes     — all external assets carry integrity="sha384-…" + crossorigin="anonymous"',
+      '  security-headers   — all 5 required headers present in _headers',
+      '  csp-policy         — CSP contains script-src \'self\' and omits \'unsafe-inline\'',
+      '',
+      'Exit codes:',
+      '  0  all checks passed',
+      '  1  one or more checks failed (details printed to stderr)',
+      '',
+    ].join('\n'));
+    process.exit(0);
+  }
   run();
 }

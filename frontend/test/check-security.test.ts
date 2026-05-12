@@ -7,9 +7,17 @@
  *   checkSRI              — asserts integrity + crossorigin on every external asset
  *   checkSecurityHeaders  — asserts all five required headers present in deploy config
  *   checkCSP              — asserts CSP contains script-src 'self' and lacks unsafe-inline
+ *
+ * Also covers CLI output behaviour (run() and --help) via child-process spawn.
  */
 import { createRequire } from "module";
 import { describe, it, expect } from "vitest";
+import { spawnSync } from "child_process";
+import * as path from "path";
+import * as url from "url";
+
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+const SCRIPT = path.resolve(__dirname, "../scripts/check-security.js");
 
 const require = createRequire(import.meta.url);
 const {
@@ -297,5 +305,73 @@ describe("checkCSP", () => {
     const content =
       "/*\n  X-Frame-Options: DENY\n  X-Content-Type-Options: nosniff\n";
     expect(() => checkCSP(content)).toThrow();
+  });
+});
+
+// ─── CLI output (run() and --help) ───────────────────────────────────────────
+
+describe("CLI output", () => {
+  it("--help exits 0", () => {
+    const result = spawnSync(process.execPath, [SCRIPT, "--help"], {
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(0);
+  });
+
+  it("--help prints usage line to stdout", () => {
+    const result = spawnSync(process.execPath, [SCRIPT, "--help"], {
+      encoding: "utf8",
+    });
+    expect(result.stdout).toMatch(/Usage:/i);
+  });
+
+  it("--help lists every check by name", () => {
+    const result = spawnSync(process.execPath, [SCRIPT, "--help"], {
+      encoding: "utf8",
+    });
+    const out = result.stdout;
+    expect(out).toMatch(/no-inline-styles/);
+    expect(out).toMatch(/no-inline-scripts/);
+    expect(out).toMatch(/sri-attributes/);
+    expect(out).toMatch(/security-headers/);
+    expect(out).toMatch(/csp-policy/);
+  });
+
+  it("--help documents exit codes", () => {
+    const result = spawnSync(process.execPath, [SCRIPT, "--help"], {
+      encoding: "utf8",
+    });
+    expect(result.stdout).toMatch(/exit code/i);
+  });
+
+  it("successful run exits 0 and prints '5/5 checks passed'", () => {
+    const result = spawnSync(process.execPath, [SCRIPT], {
+      encoding: "utf8",
+      cwd: path.resolve(__dirname, ".."),
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/5\/5 checks passed/);
+  });
+
+  it("successful run shows a tick for each of the 5 checks in stdout", () => {
+    const result = spawnSync(process.execPath, [SCRIPT], {
+      encoding: "utf8",
+      cwd: path.resolve(__dirname, ".."),
+    });
+    const ticks = (result.stdout.match(/✓/g) || []).length;
+    expect(ticks).toBe(5);
+  });
+
+  it("successful run names all 5 checks in stdout", () => {
+    const result = spawnSync(process.execPath, [SCRIPT], {
+      encoding: "utf8",
+      cwd: path.resolve(__dirname, ".."),
+    });
+    const out = result.stdout;
+    expect(out).toMatch(/no-inline-styles/);
+    expect(out).toMatch(/no-inline-scripts/);
+    expect(out).toMatch(/sri-attributes/);
+    expect(out).toMatch(/security-headers/);
+    expect(out).toMatch(/csp-policy/);
   });
 });
