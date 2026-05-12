@@ -122,7 +122,10 @@ function checkBundles(distDir) {
   if (!fs.existsSync(distDir)) {
     return {
       ok: true,
-      stdout: `check-bundle: ${distDir} not found — skipping (no assets to check)\n`,
+      stdout:
+        `check-bundle: ${distDir} not found — skipping (0 files checked)\n` +
+        `  Hint: Next.js builds output to .next/static/chunks/, not dist/assets/.\n` +
+        `  To check a Next.js build: node scripts/check-bundle.js .next/static/chunks\n`,
       stderr: "",
     };
   }
@@ -142,6 +145,14 @@ function checkBundles(distDir) {
   const warningBlock =
     allWarnings.length > 0 ? allWarnings.join("\n") + "\n" : "";
 
+  const fileCount = js.sizes.length + css.sizes.length;
+  const fileCountLabel =
+    fileCount === 0
+      ? "0 files checked"
+      : fileCount === 1
+      ? "1 file checked"
+      : `${fileCount} files checked`;
+
   // Summary lines printed on both pass and fail for visibility.
   const summaryLines = [
     ...js.sizes.map((f) => `  JS  ${f.name}: ${f.gzip} B (gzip)`),
@@ -160,13 +171,21 @@ function checkBundles(distDir) {
     return {
       ok: false,
       stdout: warningBlock,
-      stderr: `check-bundle FAILED\n${violations.join("\n")}\n\n${summaryLines}\n`,
+      stderr: `check-bundle FAILED (${fileCountLabel})\n${violations.join("\n")}\n\n${summaryLines}\n`,
     };
   }
 
+  // When zero files were measured (directory exists but holds no .js/.css),
+  // surface a hint so developers aren't misled by a vacuous PASSED.
+  const zeroFilesHint =
+    fileCount === 0
+      ? `  Hint: No .js or .css files found in ${distDir}.\n` +
+        `  If using Next.js, try: node scripts/check-bundle.js .next/static/chunks\n`
+      : "";
+
   return {
     ok: true,
-    stdout: `${warningBlock}check-bundle PASSED\n${summaryLines}\n`,
+    stdout: `${warningBlock}check-bundle PASSED (${fileCountLabel})\n${summaryLines}\n${zeroFilesHint}`,
     stderr: "",
   };
 }

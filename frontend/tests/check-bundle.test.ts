@@ -55,9 +55,23 @@ describe("check-bundle script", () => {
     expect(result.status).toBe(0);
   });
 
+  it("prints '0 files checked' and a Next.js path hint when directory does not exist", () => {
+    const result = runScript(join(tmpDir, "nonexistent"));
+    expect(result.stdout).toContain("0 files checked");
+    expect(result.stdout).toContain(".next/static/chunks");
+  });
+
   it("exits 0 with an empty directory (no JS or CSS files)", () => {
     const result = runScript(tmpDir);
     expect(result.status).toBe(0);
+  });
+
+  it("prints '0 files checked' and a Next.js path hint when directory has no JS or CSS files", () => {
+    // Only a .map file present — no .js or .css
+    writeFileSync(join(tmpDir, "main.js.map"), "{}");
+    const result = runScript(tmpDir);
+    expect(result.stdout).toContain("0 files checked");
+    expect(result.stdout).toContain(".next/static/chunks");
   });
 
   it("exits 0 with small JS and CSS files well within budget", () => {
@@ -65,6 +79,21 @@ describe("check-bundle script", () => {
     writeFileSync(join(tmpDir, "main.css"), "body{color:red}");
     const result = runScript(tmpDir);
     expect(result.status).toBe(0);
+  });
+
+  it("includes the file count in the PASSED message", () => {
+    writeFileSync(join(tmpDir, "main.js"), 'console.log("hi")');
+    writeFileSync(join(tmpDir, "main.css"), "body{color:red}");
+    const result = runScript(tmpDir);
+    // Two files: 1 JS + 1 CSS
+    expect(result.stdout).toContain("2 files checked");
+  });
+
+  it("uses singular 'file' when exactly one file is checked", () => {
+    writeFileSync(join(tmpDir, "main.js"), 'console.log("hi")');
+    const result = runScript(tmpDir);
+    expect(result.stdout).toContain("1 file checked");
+    expect(result.stdout).not.toContain("1 files checked");
   });
 
   it("includes JS and CSS gzip sizes in stdout on success", () => {
