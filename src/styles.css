@@ -6,6 +6,10 @@
 /* --------------------------------------------------------------------------
    Reset / base
    -------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+}
+
 *,
 *::before,
 *::after {
@@ -87,8 +91,18 @@ body {
 
 .field__input:focus {
   outline: none;
+}
+
+.field__input:focus-visible {
+  outline: none;
   border-color: #0071e3;
   box-shadow: 0 0 0 3px rgb(0 113 227 / 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field__input {
+    transition: none;
+  }
 }
 
 .field__helper {
