@@ -1,0 +1,34 @@
+## Iteration 5 — Product Acceptance: full PRD audit — all requirements covered, no gaps found
+
+- Critique: Performed a systematic line-by-line audit of every PRD requirement listed in PRODUCT_ACCEPTANCE.md against the actual test file. Checked all 14+ parser edge-cases (empty, pending, valid, invalid-format, invalid-range, whitespace-trim), all 4 math assertions, and all formatter cases including negative-zero, half-away-from-zero rounding, and large-value no-separator check. Also verified exported API surface: `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`, four type guards, and two exported constants. No gaps were found — every PRD requirement is covered by an explicit test assertion.
+- Change: No code or test changes required. All 7 PRODUCT_ACCEPTANCE.md success criteria were already checked. Appended this iteration entry only.
+- Files touched: `_factory/iterations/issue-3.md`
+- Tests: 61 passed (0 new tests — all prior tests green, no regressions)
+
+## Iteration 4 — Test and Evaluation Coverage: fill branch and boundary gaps in parser, math, and formatter tests
+
+- Critique: Five meaningful coverage gaps existed. (1) `TRAILING_DOT_RE` was only exercised with single-digit inputs (`"1."`, `"-1."`); the multi-digit case `"123."` was never tested, leaving the regex's `\d+` quantifier unverified for n>1. (2) The exact negative boundary `"-1000000"` was untested — the parser uses `Math.abs(value) > MAX_ABS` (strict greater-than), so ±1 000 000 must be *valid*, but only `"-1000001"` was checked. (3) Embedded whitespace (`"12 3"`) was not tested; `trim()` only strips leading/trailing space, so an internal space must produce `invalid: format`, but this was never asserted. (4) `celsiusToFahrenheit` had no float test — all three cases produced integers, leaving the `× 9/5` fractional branch unverified (37 °C → 98.6 °F). (5) `formatNumber` had no large-value test to confirm the absence of locale-specific thousands separators (1 000 000 should be `"1000000.00"`, not `"1,000,000.00"`).
+- Change: Added 5 new tests: (a) `parseTemperature("123.")` → `pending` (multi-digit TRAILING_DOT_RE), (b) `parseTemperature("12 3")` → `invalid: format` (embedded whitespace), (c) `parseTemperature("-1000000")` → `valid, value: -1000000` (exact negative boundary), (d) `celsiusToFahrenheit(37)` → `toBeCloseTo(98.6, 10)` (float result), (e) `formatNumber(1_000_000)` → `"1000000.00"` (no thousands separator). No existing tests were modified or weakened. All PRODUCT_ACCEPTANCE.md success criteria now satisfied and checked.
+- Files touched: `frontend/tests/convert.test.ts`, `PRODUCT_ACCEPTANCE.md`
+- Tests: 56 passed before → 61 passed after (5 new tests added, 0 failures)
+
+## Iteration 3 — Backend Reliability: fix celsiusToKelvin IEEE 754 drift and export boundary constants
+
+- Critique: `celsiusToKelvin` used raw addition (`celsius + 273.15`), which is subject to IEEE 754 binary floating-point drift for many inputs. The most damaging example is the crossover temperature: `celsiusToKelvin(-40)` returns `233.14999999999998` instead of the correct `233.15`. This is a silent precision bug — the result looks plausible but is wrong at the last few digits. Additionally, `MAX_ABS` and `MAX_LENGTH` were declared `const` (not `export const`), so downstream callers who want to apply the same validation boundaries (e.g. setting `<input maxLength>` or a pre-submit guard) had no way to import those values without duplicating the magic numbers, violating single-source-of-truth.
+- Change: (1) Fixed `celsiusToKelvin` to round to 10 decimal places via `Math.round((celsius + 273.15) * 1e10) / 1e10`, eliminating IEEE 754 drift while retaining all physically meaningful precision (temperature measurements are accurate to ~0.001 K at best, far coarser than 10-decimal precision). (2) Changed `MAX_ABS` and `MAX_LENGTH` from unexported to `export const`, with JSDoc explaining the re-export rationale. (3) Added 4 new tests: `celsiusToKelvin(100)` (boiling point), `celsiusToKelvin(-40)` with an explicit IEEE 754 drift guard comment, and two tests for the exported constants verifying their values and that the parser honours them at the boundary.
+- Files touched: `frontend/lib/convert.ts`, `frontend/tests/convert.test.ts`
+- Tests: 52 passed before → 56 passed after (4 new tests added, 0 failures)
+
+## Iteration 2 — UX/Product Polish: export type guards for ParseResult discriminated union
+
+- Critique: `ParseResult` is a discriminated union with four variants, but the module exported no type guard helpers. Every downstream caller (component code, future API adapters) had to repeat `if (result.status === 'valid')` boilerplate — correct but not ergonomic and not self-documenting. The `pending` state's purpose (suppressing premature error flashing while the user is mid-entry) was described only in the module-level comment, not at the type/function level where component authors would encounter it. No type guard tests existed to protect the narrowing contract.
+- Change: Added four exported type guard functions — `isEmptyResult`, `isPendingResult`, `isValidResult`, `isInvalidResult` — each with a JSDoc explaining its UX intent (e.g. `isPendingResult` explains the neutral-state / anti-flicker rationale). Upgraded the module-level doc to explicitly cross-reference these guards and to describe each state's UI implication. Added 9 new vitest tests that exercise every guard: true/false cases, and narrowing correctness verified by accessing `.value` and `.reason` inside the guarded branch. No existing tests were modified.
+- Files touched: `frontend/lib/convert.ts`, `frontend/tests/convert.test.ts`
+- Tests: 43 passed before → 52 passed after (9 new type guard tests added, 0 failures)
+
+## Iteration 1 — Security Hardening: guard formatNumber against non-finite inputs
+
+- Critique: `formatNumber` is a public export. Passing `Infinity`, `-Infinity`, or `NaN` directly to it produces the misleading strings `"Infinity"`, `"-Infinity"`, or `"NaN"` via `Number.prototype.toFixed` — not a numeric display string. The parser itself can never produce non-finite values in a `valid` result (COMPLETE_NUMBER_RE + the range check prevent it), but the exported function has no contract enforcement. A downstream caller (e.g. a new conversion helper, a test harness, or a future API response path) could pass a non-finite value and silently receive garbage output with no error surfaced.
+- Change: Added an `isFinite(n)` guard at the top of `formatNumber` that throws a `TypeError` for `NaN`, `Infinity`, and `-Infinity`. Added three new vitest assertions that confirm the `TypeError` is thrown for each non-finite case. No existing tests were modified or weakened.
+- Files touched: `frontend/lib/convert.ts`, `frontend/tests/convert.test.ts`
+- Tests: 40 passed before → 43 passed after (3 new security hardening tests added, 0 failures)
