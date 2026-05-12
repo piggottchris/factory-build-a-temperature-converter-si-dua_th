@@ -39,7 +39,7 @@ VALID / INVALID states so the interface always communicates clearly to the user.
 - Not applicable — this is a purely static, client-side app.
 
 ### Security
-- [ ] XSS: all user-controlled content written with `textContent`, never `innerHTML`.
+- [x] XSS: all user-controlled content written with `textContent`, never `innerHTML`.
 - [ ] Demo-mode / local-only limitation documented (no authentication required for a static converter).
 
 ### Observability
