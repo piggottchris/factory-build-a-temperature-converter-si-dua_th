@@ -27,7 +27,7 @@ const { JSDOM } = require('jsdom');
 
 // ─── File locations ──────────────────────────────────────────────────────────
 
-const DIST_HTML   = path.resolve(__dirname, '..', 'dist', 'index.html');
+const DIST_HTML    = path.resolve(__dirname, '..', 'dist', 'index.html');
 const HEADERS_FILE = path.resolve(__dirname, '..', '_headers');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -75,7 +75,8 @@ function checkNoInlineStyles(html) {
  * flags them intentionally — use <meta> or external JSON endpoints instead.
  *
  * @param {string} html - Raw HTML string to validate.
- * @throws {Error} If any <script> has non-empty trimmed text content.
+ * @throws {Error} If any inline <script> (without src) has any text content, or if any
+ *                 external <script src> has non-whitespace inline code alongside its src.
  */
 function checkNoInlineScripts(html) {
   const { document } = new JSDOM(html).window;
@@ -195,6 +196,7 @@ function checkCSP(headersContent) {
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
+// (_assertSRIAttributes, _readArtefact — not exported, used by check functions and run())
 
 /**
  * Assert that an HTML element carries a valid SRI integrity attribute and
@@ -235,25 +237,27 @@ function _assertSRIAttributes(el, desc) {
  * Reads dist/index.html and _headers from the filesystem.
  * Prints a pass/fail summary and exits with the appropriate code.
  */
+/**
+ * Read a file from disk, exiting with code 1 if the file cannot be found.
+ *
+ * @param {string} filePath - Absolute path to the file.
+ * @returns {string} UTF-8 file contents.
+ */
+function _readArtefact(filePath) {
+  try {
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (err) {
+    console.error(`[check-security] Cannot read ${filePath}: ${err.message}`);
+    process.exit(1);
+  }
+}
+
 function run() {
   const errors = [];
 
   // ── Load artefacts ─────────────────────────────────────────────────────────
-  let html;
-  try {
-    html = fs.readFileSync(DIST_HTML, 'utf8');
-  } catch (err) {
-    console.error(`[check-security] Cannot read ${DIST_HTML}: ${err.message}`);
-    process.exit(1);
-  }
-
-  let headersContent;
-  try {
-    headersContent = fs.readFileSync(HEADERS_FILE, 'utf8');
-  } catch (err) {
-    console.error(`[check-security] Cannot read ${HEADERS_FILE}: ${err.message}`);
-    process.exit(1);
-  }
+  const html          = _readArtefact(DIST_HTML);
+  const headersContent = _readArtefact(HEADERS_FILE);
 
   // ── Run checks ────────────────────────────────────────────────────────────
   const checks = [
