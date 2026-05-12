@@ -59,3 +59,25 @@ The existing pending guard (`trimmed === "-" || trimmed.endsWith(".")`) only cov
 **Files touched:** `src/convert.ts`, `tests/dom.test.ts`
 
 **Tests:** pnpm test → 41 passed (was 31)
+
+## Pass 4 — Test and Evaluation Coverage
+
+**Finding:** Six coverage gaps in the test suite:
+
+1. **No unit tests for `parseCelsius`** — all parsing tests went through DOM + `initConverter`. Each branch (empty, pending, valid, invalid:format, invalid:range) was exercised only implicitly via DOM event dispatch. Direct function-level tests were absent.
+
+2. **No unit tests for `formatNumber`** — the formatter had no direct assertions. Exact string output for known inputs (e.g. `212 → "212.00"`, `373.15 → "373.15"`, large boundary values) was never independently verified.
+
+3. **No unit tests for `celsiusToFahrenheit` / `celsiusToKelvin`** — the math formulas were only implicitly exercised by DOM-level tests against specific inputs. There was no test for the -40 °C crossover or absolute-zero proximity.
+
+4. **`is-invalid` CSS class never asserted** — `main.ts` adds `is-invalid` on invalid states and removes it on empty/pending/valid. Not one test called `classList.contains("is-invalid")`, so the class mutation logic had zero coverage.
+
+5. **`aria-describedby` removal on valid/pending untested** — there was a test that `aria-describedby` excludes "error-message" after returning to empty, but no test confirming the attribute is completely absent (not just lacking "error-message") after a valid or pending transition.
+
+6. **Boundary output values not asserted** — the boundary tests for `1000000` and `-1000000` only checked `errorMsg.hidden`, never the actual Fahrenheit/Kelvin strings produced (`"1800032.00 °F"`, `"1000273.15 K"`, `"-1799968.00 °F"`, `"-999726.85 K"`).
+
+**Change:** Created `tests/convert.test.ts` with 53 new unit tests covering all `parseCelsius` branches (empty, pending, invalid:format, invalid:range, valid), `celsiusToFahrenheit`, `celsiusToKelvin`, and `formatNumber` with exact string assertions. Added 19 new DOM-level tests to `tests/dom.test.ts` in four new describe blocks: `is-invalid CSS class` (6 tests), `aria-describedby transitions` (4 tests), `multi-step transition sequences` (5 tests), and `boundary output values` (4 tests). Net addition: +72 tests (53 in new file, 19 in existing file). No tests removed.
+
+**Files touched:** `tests/convert.test.ts` (new), `tests/dom.test.ts`, `PRODUCT_ACCEPTANCE.md`
+
+**Tests:** pnpm test → 113 passed (was 41)

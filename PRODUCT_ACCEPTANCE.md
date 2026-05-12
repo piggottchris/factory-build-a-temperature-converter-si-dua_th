@@ -52,13 +52,13 @@ VALID / INVALID states so the interface always communicates clearly to the user.
 
 | # | Criterion | Status |
 |---|-----------|--------|
-| 1 | Typing `100` shows `212.00 °F` and `373.15 K` | ⬜ |
-| 2 | Clearing input restores `—` and empty-hint | ⬜ |
-| 3 | `-273.16` is valid; `-274` is valid (but extreme); `1000001` shows range error | ⬜ |
-| 4 | `abc` shows format error | ⬜ |
-| 5 | `-` alone triggers pending (no error, no output change) | ⬜ |
-| 6 | Error slot uses `textContent`, not `innerHTML` | ⬜ |
-| 7 | Tests pass under vitest + jsdom | ⬜ |
+| 1 | Typing `100` shows `212.00 °F` and `373.15 K` | ✅ |
+| 2 | Clearing input restores `—` and empty-hint | ✅ |
+| 3 | `-273.16` is valid; `-274` is valid (but extreme); `1000001` shows range error | ✅ |
+| 4 | `abc` shows format error | ✅ |
+| 5 | `-` alone triggers pending (no error, no output change) | ✅ |
+| 6 | Error slot uses `textContent`, not `innerHTML` | ✅ |
+| 7 | Tests pass under vitest + jsdom | ✅ |
 
 ---
 

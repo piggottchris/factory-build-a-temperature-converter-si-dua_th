@@ -330,4 +330,140 @@ describe("main.ts — DOM state machine", () => {
       expect(children.length).toBe(0);
     });
   });
+
+  // ── is-invalid CSS class mutations ───────────────────────────────────────────
+
+  describe("is-invalid CSS class", () => {
+    it("adds is-invalid class on format error", () => {
+      triggerInput("abc");
+      expect(refs.input.classList.contains("is-invalid")).toBe(true);
+    });
+
+    it("adds is-invalid class on range error", () => {
+      triggerInput("2000000");
+      expect(refs.input.classList.contains("is-invalid")).toBe(true);
+    });
+
+    it("removes is-invalid class when input clears (empty state)", () => {
+      triggerInput("abc");
+      triggerInput("");
+      expect(refs.input.classList.contains("is-invalid")).toBe(false);
+    });
+
+    it("removes is-invalid class when input becomes valid after invalid", () => {
+      triggerInput("abc");
+      triggerInput("100");
+      expect(refs.input.classList.contains("is-invalid")).toBe(false);
+    });
+
+    it("removes is-invalid class when input becomes pending after invalid", () => {
+      triggerInput("abc");
+      triggerInput("-");
+      expect(refs.input.classList.contains("is-invalid")).toBe(false);
+    });
+
+    it("is-invalid is absent on initial render (before any input)", () => {
+      expect(refs.input.classList.contains("is-invalid")).toBe(false);
+    });
+  });
+
+  // ── aria-describedby transitions ──────────────────────────────────────────────
+
+  describe("aria-describedby transitions", () => {
+    it("sets aria-describedby to error-message on invalid state", () => {
+      triggerInput("abc");
+      expect(refs.input.getAttribute("aria-describedby")).toBe("error-message");
+    });
+
+    it("removes aria-describedby entirely on valid state", () => {
+      triggerInput("abc");  // goes invalid → sets aria-describedby
+      triggerInput("100");  // goes valid → should remove aria-describedby
+      expect(refs.input.hasAttribute("aria-describedby")).toBe(false);
+    });
+
+    it("removes aria-describedby entirely on pending state", () => {
+      triggerInput("abc");  // goes invalid → sets aria-describedby
+      triggerInput("-");    // goes pending → should remove aria-describedby
+      expect(refs.input.hasAttribute("aria-describedby")).toBe(false);
+    });
+
+    it("sets aria-describedby to empty-hint on empty state", () => {
+      triggerInput("abc");  // goes invalid
+      triggerInput("");     // back to empty
+      expect(refs.input.getAttribute("aria-describedby")).toBe("empty-hint");
+    });
+  });
+
+  // ── Transition sequences (multi-step flows) ───────────────────────────────────
+
+  describe("multi-step transition sequences", () => {
+    it("valid → invalid → empty: outputs show — at end", () => {
+      triggerInput("100");    // valid
+      triggerInput("abc");    // invalid
+      triggerInput("");       // empty
+      expect(refs.fahrenheit.textContent).toBe("—");
+      expect(refs.kelvin.textContent).toBe("—");
+      expect(refs.emptyHint.hidden).toBe(false);
+      expect(refs.errorMsg.hidden).toBe(true);
+    });
+
+    it("invalid → valid: error clears and correct output appears", () => {
+      triggerInput("abc");    // invalid
+      triggerInput("0");      // valid
+      expect(refs.errorMsg.hidden).toBe(true);
+      expect(refs.fahrenheit.textContent).toBe("32.00 °F");
+      expect(refs.kelvin.textContent).toBe("273.15 K");
+    });
+
+    it("pending → valid: outputs update when complete number entered", () => {
+      triggerInput("10");     // valid first to establish lastValid
+      triggerInput("10.");    // pending
+      triggerInput("100");    // valid
+      expect(refs.fahrenheit.textContent).toBe("212.00 °F");
+      expect(refs.kelvin.textContent).toBe("373.15 K");
+    });
+
+    it("valid → pending: retains last-valid outputs during pending", () => {
+      triggerInput("100");    // valid
+      triggerInput("100.");   // pending (trailing dot)
+      expect(refs.fahrenheit.textContent).toBe("212.00 °F");
+      expect(refs.kelvin.textContent).toBe("373.15 K");
+      expect(refs.errorMsg.hidden).toBe(true);
+    });
+
+    it("range-error → valid → empty: full round-trip", () => {
+      triggerInput("9999999"); // range error
+      expect(refs.errorMsg.hidden).toBe(false);
+      triggerInput("-40");     // valid
+      expect(refs.errorMsg.hidden).toBe(true);
+      expect(refs.fahrenheit.textContent).toBe("-40.00 °F");
+      triggerInput("");        // empty
+      expect(refs.fahrenheit.textContent).toBe("—");
+      expect(refs.emptyHint.hidden).toBe(false);
+    });
+  });
+
+  // ── Boundary output values ────────────────────────────────────────────────────
+
+  describe("boundary output values", () => {
+    it("1000000 °C → 1800032.00 °F", () => {
+      triggerInput("1000000");
+      expect(refs.fahrenheit.textContent).toBe("1800032.00 °F");
+    });
+
+    it("1000000 °C → 1000273.15 K", () => {
+      triggerInput("1000000");
+      expect(refs.kelvin.textContent).toBe("1000273.15 K");
+    });
+
+    it("-1000000 °C → -1799968.00 °F", () => {
+      triggerInput("-1000000");
+      expect(refs.fahrenheit.textContent).toBe("-1799968.00 °F");
+    });
+
+    it("-1000000 °C → -999726.85 K", () => {
+      triggerInput("-1000000");
+      expect(refs.kelvin.textContent).toBe("-999726.85 K");
+    });
+  });
 });
