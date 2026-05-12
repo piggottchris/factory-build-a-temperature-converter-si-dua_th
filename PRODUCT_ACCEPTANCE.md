@@ -55,13 +55,13 @@ Demo-mode / local-only. No authentication required. Input validation enforced in
 N/A for a pure unit-test PR — no runtime observability hooks needed.
 
 ## Success Criteria
-- [ ] All parser edge-cases covered (≥ 14 distinct inputs tested)
-- [ ] All math conversions tested (4 assertions)
-- [ ] All formatter cases tested (≥ 4 assertions)
-- [ ] `npm test` exits 0 in the `frontend/` directory
-- [ ] `frontend/lib/convert.ts` source file exists with exported `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`
-- [ ] Vitest config updated to discover `tests/` directory
-- [ ] No existing tests broken
+- [x] All parser edge-cases covered (≥ 14 distinct inputs tested)
+- [x] All math conversions tested (4 assertions)
+- [x] All formatter cases tested (≥ 4 assertions)
+- [x] `npm test` exits 0 in the `frontend/` directory
+- [x] `frontend/lib/convert.ts` source file exists with exported `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`
+- [x] Vitest config updated to discover `tests/` directory
+- [x] No existing tests broken
 
 ## Known Limitations
 _None at this time._

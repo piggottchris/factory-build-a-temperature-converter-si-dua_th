@@ -54,6 +54,11 @@ describe("parseTemperature — pending inputs", () => {
   it("returns pending for a negative number ending in a decimal point (-1.)", () => {
     expect(parseTemperature("-1.")).toEqual({ status: "pending" });
   });
+
+  it("returns pending for a multi-digit number ending in a decimal point (123.)", () => {
+    // TRAILING_DOT_RE covers any sequence of digits, not only single digits.
+    expect(parseTemperature("123.")).toEqual({ status: "pending" });
+  });
 });
 
 describe("parseTemperature — valid inputs", () => {
@@ -123,6 +128,12 @@ describe("parseTemperature — invalid: format", () => {
     expect(parseTemperature("2.5e-3")).toEqual({ status: "invalid", reason: "format" });
   });
 
+  it("rejects embedded whitespace (12 3) — trim only strips leading/trailing", () => {
+    // trim() removes surrounding whitespace but does NOT collapse internal spaces.
+    // "12 3" must be rejected as format-invalid, not treated as the number 123.
+    expect(parseTemperature("12 3")).toEqual({ status: "invalid", reason: "format" });
+  });
+
   it("rejects a string of length 33 (too long)", () => {
     const longString = "1".repeat(33);
     expect(parseTemperature(longString)).toEqual({ status: "invalid", reason: "format" });
@@ -136,6 +147,11 @@ describe("parseTemperature — invalid: range", () => {
 
   it("rejects -1 000 001 (exceeds lower bound)", () => {
     expect(parseTemperature("-1000001")).toEqual({ status: "invalid", reason: "range" });
+  });
+
+  it("accepts -1 000 000 (exact negative boundary — inclusive)", () => {
+    // MAX_ABS check is Math.abs(value) > MAX_ABS, so ±1 000 000 must be valid.
+    expect(parseTemperature("-1000000")).toEqual({ status: "valid", value: -1_000_000 });
   });
 });
 
@@ -154,6 +170,11 @@ describe("celsiusToFahrenheit", () => {
 
   it("converts freezing point: 0 °C → 32 °F", () => {
     expect(celsiusToFahrenheit(0)).toBe(32);
+  });
+
+  it("converts body temperature: 37 °C → 98.6 °F (float result)", () => {
+    // Verifies the formula produces the correct fractional Fahrenheit value.
+    expect(celsiusToFahrenheit(37)).toBeCloseTo(98.6, 10);
   });
 });
 
@@ -216,6 +237,11 @@ describe("formatNumber", () => {
 
   it("throws TypeError for NaN", () => {
     expect(() => formatNumber(NaN)).toThrow(TypeError);
+  });
+
+  it("formats a large in-range value without thousands separators", () => {
+    // toFixed does not insert locale-specific separators; formatNumber must not either.
+    expect(formatNumber(1_000_000)).toBe("1000000.00");
   });
 });
 
