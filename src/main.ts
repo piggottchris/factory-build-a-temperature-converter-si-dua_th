@@ -19,8 +19,7 @@ import {
 
 const MSG_FORMAT =
   'Please enter a valid number (use "." as the decimal point, e.g. 36.6 or -40).';
-const MSG_RANGE =
-  "Enter a value between -1,000,000 and 1,000,000 °C.";
+const MSG_RANGE = "Enter a value between -1,000,000 and 1,000,000 °C.";
 
 // ── Last-valid context ────────────────────────────────────────────────────────
 
@@ -51,34 +50,25 @@ export function initConverter(document: Document): void {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  /** Set both output elements using textContent. */
   function setOutputs(f: string, k: string): void {
     fahrenheitOutput!.textContent = f;
     kelvinOutput!.textContent = k;
   }
 
-  function showError(message: string): void {
-    errorMsg!.textContent = message; // textContent only — XSS safe
-    errorMsg!.hidden = false;
-    emptyHint!.hidden = true;
-    // Add error ID to aria-describedby so screen readers announce the error
-    const described = new Set(
-      (input!.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean)
-    );
-    described.add("error-message");
-    described.delete("empty-hint");
-    input!.setAttribute("aria-describedby", [...described].join(" "));
-    input!.classList.add("is-invalid");
-  }
-
-  function clearError(): void {
-    errorMsg!.hidden = true;
-    errorMsg!.textContent = "";
-    const described = new Set(
-      (input!.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean)
-    );
-    described.delete("error-message");
-    input!.setAttribute("aria-describedby", [...described].join(" "));
-    input!.classList.remove("is-invalid");
+  /**
+   * Deterministically rebuild aria-describedby so it contains exactly the
+   * IDs appropriate for each state:
+   *   empty   → ["empty-hint"]
+   *   normal  → []          (pending / valid — no extra description needed)
+   *   error   → ["error-message"]
+   */
+  function setAriaDescribedBy(ids: string[]): void {
+    if (ids.length === 0) {
+      input!.removeAttribute("aria-describedby");
+    } else {
+      input!.setAttribute("aria-describedby", ids.join(" "));
+    }
   }
 
   // ── Input handler ──────────────────────────────────────────────────────────
@@ -88,33 +78,35 @@ export function initConverter(document: Document): void {
 
     switch (result.type) {
       case "empty": {
-        clearError();
+        errorMsg!.hidden = true;
+        errorMsg!.textContent = "";
+        input!.classList.remove("is-invalid");
         setOutputs("—", "—");
         emptyHint!.hidden = false;
+        setAriaDescribedBy(["empty-hint"]);
         lastValid = null;
-        // Restore empty-hint to aria-describedby
-        const described = new Set(
-          (input!.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean)
-        );
-        described.add("empty-hint");
-        input!.setAttribute("aria-describedby", [...described].join(" "));
         break;
       }
 
       case "pending": {
-        clearError();
+        errorMsg!.hidden = true;
+        errorMsg!.textContent = "";
+        input!.classList.remove("is-invalid");
         emptyHint!.hidden = true;
-        // Keep last-valid outputs (or — if none)
+        setAriaDescribedBy([]);
+        // Preserve last-valid outputs; if none yet, — remains from initialisation.
         if (lastValid !== null) {
           setOutputs(lastValid.fahrenheit, lastValid.kelvin);
         }
-        // (If lastValid is null, outputs already show —)
         break;
       }
 
       case "valid": {
-        clearError();
+        errorMsg!.hidden = true;
+        errorMsg!.textContent = "";
+        input!.classList.remove("is-invalid");
         emptyHint!.hidden = true;
+        setAriaDescribedBy([]);
         const f = `${formatNumber(celsiusToFahrenheit(result.value))} °F`;
         const k = `${formatNumber(celsiusToKelvin(result.value))} K`;
         setOutputs(f, k);
@@ -123,11 +115,13 @@ export function initConverter(document: Document): void {
       }
 
       case "invalid": {
-        clearError(); // resets class and empties text before re-setting
         emptyHint!.hidden = true;
         setOutputs("—", "—");
         const message = result.reason === "range" ? MSG_RANGE : MSG_FORMAT;
-        showError(message);
+        errorMsg!.textContent = message; // textContent only — XSS safe
+        errorMsg!.hidden = false;
+        input!.classList.add("is-invalid");
+        setAriaDescribedBy(["error-message"]);
         break;
       }
     }
