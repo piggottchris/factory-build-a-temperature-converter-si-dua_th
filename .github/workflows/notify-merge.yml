@@ -1,0 +1,66 @@
+name: notify-merge
+
+# Posts a merge notification back to the originating Slack thread when a
+# factory-built PR auto-merges. Replaces the orchestrator's old inbound webhook
+# receiver — keeping inbound surface area at zero on the self-hosted mini.
+#
+# Contract with the worker's pr-author subagent: the PR body MUST include a
+# "## Factory metadata" section with two literal lines this workflow greps for:
+#
+#   - slack-channel: <Slack channel ID, e.g. C01234ABCD>
+#   - slack-thread:  <Slack thread_ts, e.g. 1709654321.234567>
+#
+# Required repo secret (set by the orchestrator at repo-create time):
+#   SLACK_BOT_TOKEN — same xoxb- token the orchestrator uses.
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  notify:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Slack metadata from PR body
+        id: meta
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          channel=$(printf '%s\n' "$PR_BODY" | grep -E '^- slack-channel:[[:space:]]*' | head -n 1 | sed -E 's/^- slack-channel:[[:space:]]*//; s/[[:space:]]+$//')
+          thread=$(printf  '%s\n' "$PR_BODY" | grep -E '^- slack-thread:[[:space:]]*'  | head -n 1 | sed -E 's/^- slack-thread:[[:space:]]*//;  s/[[:space:]]+$//')
+          if [ -z "$channel" ] || [ -z "$thread" ]; then
+            echo "::error::PR body missing required '## Factory metadata' section (slack-channel / slack-thread). Cannot post merge notification."
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "thread=$thread"   >> "$GITHUB_OUTPUT"
+
+      - name: Post to Slack
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          CHANNEL:  ${{ steps.meta.outputs.channel }}
+          THREAD:   ${{ steps.meta.outputs.thread }}
+          PR_URL:   ${{ github.event.pull_request.html_url }}
+          PR_NUM:   ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPO:     ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SLACK_BOT_TOKEN" ]; then
+            echo "::error::SLACK_BOT_TOKEN secret not configured on this repo. The orchestrator should have set it at repo-create time."
+            exit 1
+          fi
+          text=":white_check_mark: PR merged: <${PR_URL}|#${PR_NUM} ${PR_TITLE}>"$'\n'"Repo: <https://github.com/${REPO}|${REPO}>"
+          payload=$(jq -nc \
+            --arg channel "$CHANNEL" \
+            --arg thread  "$THREAD" \
+            --arg text    "$text" \
+            '{channel: $channel, thread_ts: $thread, text: $text}')
+          response=$(curl -sSf -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            --data-binary "$payload")
+          echo "$response"
+          echo "$response" | jq -e '.ok == true' > /dev/null

@@ -1,0 +1,51 @@
+name: dependency-review
+
+# Runs on every PR. Diffs the PR's dep changes against the base branch and
+# fails the build when any introduced dependency carries a high+ severity
+# advisory. Required-check context for branch protection (Chunk D of the
+# P1-08 supply-chain loop) is `dependency-review / dependency-review`.
+#
+# Why pull_request only: the action requires a base-vs-head diff context;
+# push events don't have a meaningful base to compare against.
+#
+# Why fail-on-severity: high: matches the existing security-audit.yml
+# threshold so operators have one mental model for what blocks merge.
+#
+# No untrusted github.event.* inputs are interpolated into run blocks here.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v5
+        with:
+          # HIGH+critical fail the build. Moderate findings still surface
+          # via the always-on PR comment below (without blocking merge).
+          fail-on-severity: high
+          # `always` (not on-failure): every PR gets a visible attestation
+          # comment, including "no dep changes" / "permission-stripped" /
+          # "moderate-only" cases that would otherwise silently disappear.
+          # Operators can spot-check the comment to confirm review actually
+          # ran on every PR.
+          comment-summary-in-pr: always
+          # SPDX deprecated the bare `GPL-2.0` / `AGPL-3.0` forms in favour
+          # of `-only` / `-or-later` suffixes. Newer dependency manifests
+          # ship with the suffixed form; matching against the deprecated
+          # bare ID would silently let suffixed-form GPL deps through.
+          deny-licenses: >-
+            GPL-2.0-only, GPL-2.0-or-later,
+            GPL-3.0-only, GPL-3.0-or-later,
+            AGPL-1.0-only, AGPL-1.0-or-later,
+            AGPL-3.0-only, AGPL-3.0-or-later

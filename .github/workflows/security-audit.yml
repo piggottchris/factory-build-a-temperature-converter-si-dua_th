@@ -1,0 +1,75 @@
+name: security-audit
+
+# Required check that gates auto-merge on critical/high vulnerabilities.
+# Three structured scanners feed into one consolidated result so branch
+# protection only needs to require ONE check (security-audit/audit):
+#   npm audit (frontend) | pip-audit (backend) | trivy fs (whole repo)
+#
+# When a finding blocks merge, the factory's auto-fix loop (orchestrator
+# pr-check-poller) detects the failure and dispatches a fix sandbox keyed
+# on the failing check name. Thresholds tuned for autonomous-fix viability:
+#   - npm audit  --audit-level=high
+#   - pip-audit  --strict
+#   - trivy fs   --severity HIGH,CRITICAL  (skip MEDIUM noise on POCs)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: read
+
+jobs:
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: npm audit (high+critical)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps + pip-audit
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip install -e ".[dev]"
+
+      - name: pip-audit (strict)
+        working-directory: backend
+        # Pass the project path so pip-audit reads pyproject.toml deps
+        # rather than the installed env. Env-mode under --strict fails
+        # on the local editable install (darkpoc-backend isn't on PyPI
+        # and is therefore unauditable). Project-mode still audits
+        # every declared dependency, including dev extras.
+        run: pip-audit --strict .
+
+      - name: Trivy fs scan (high+critical)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true

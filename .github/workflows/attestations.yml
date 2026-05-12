@@ -1,0 +1,103 @@
+name: attestations
+
+# GitHub artifact attestations for the SBOMs produced by the `sbom` workflow.
+# Fires via `workflow_run` AFTER sbom.yml completes successfully, downloads
+# the `sboms` artifact from that run, and produces a signed build-provenance
+# attestation covering both SBOM files.
+#
+# Why workflow_run (and not a job inside sbom.yml)?
+#   - Keeps separation of concerns: sbom.yml stays a single-job CycloneDX
+#     emitter; attestations.yml owns OIDC + signing.
+#   - Avoids inflating sbom.yml's permission surface (which is `contents: read`
+#     only). This workflow's elevated `id-token: write` + `attestations: write`
+#     scope is contained to the attestation step alone.
+#   - Attestation evidence covers the exact bytes that were uploaded as the
+#     `sboms` artifact — no re-generation, no drift risk.
+#
+# Why no PR-trigger duplicate?
+#   - `workflow_run` already fires for both push and pull_request runs of
+#     sbom.yml. Adding a direct PR trigger here would double-sign and burn
+#     OIDC quota.
+#
+# Injection-safety note:
+#   - All `${{ ... }}` expressions in this file resolve to GitHub-generated
+#     identifiers (workflow_run.id, workflow_run.head_sha, workflow_run.conclusion),
+#     OIDC tokens (github.token), or step outputs from a first-party action
+#     (steps.attest.outputs.*). None come from untrusted human text fields
+#     (issue title, PR body, commit message, etc).
+#
+# Plan-tier note (template repo is PUBLIC as of 2026-05-11):
+#   - `attest-build-provenance` works on public repos on all plans and on
+#     Enterprise Cloud for private. The template repo was made public earlier
+#     in P1-08, which unlocks this for free. Generated POC repos that
+#     inherit this workflow on Pro-private plans will see the attest step
+#     fail with "Resource not accessible by integration" on id-token —
+#     factory-side plan probing (Chunk F) surfaces that as a session risk.
+
+on:
+  workflow_run:
+    workflows: ["sbom"]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  attest:
+    name: attest
+    runs-on: ubuntu-latest
+    # Only run when the upstream sbom workflow succeeded. Skips re-runs of
+    # failed sbom workflows so we never sign incomplete evidence.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read         # checkout (for verify step below); also baseline
+      id-token: write        # OIDC token issuance for sigstore-backed attest
+      attestations: write    # write attestation record to repo
+      actions: read          # download-artifact@v4 cross-workflow read
+
+    steps:
+      - name: Checkout (for verify step)
+        uses: actions/checkout@v4
+        with:
+          # Pin to the commit the upstream sbom workflow ran against — keeps
+          # the verify step's working tree consistent with what was signed.
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download SBOMs from sbom workflow run
+        uses: actions/download-artifact@v4
+        with:
+          name: sboms
+          # Cross-workflow artifact fetch requires run-id + github-token.
+          # `actions: read` on this job's permissions block authorises it.
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: ${{ github.workspace }}
+
+      - name: Confirm SBOM files present pre-attest
+        run: |
+          ls -la "$GITHUB_WORKSPACE"/sbom-*.cdx.json
+          # Hard-fail if either file is missing — attest-build-provenance
+          # silently skips missing globs, which would produce a vacuous
+          # attestation. Belt-and-braces.
+          test -s "$GITHUB_WORKSPACE/sbom-backend.cdx.json" || { echo "::error::backend SBOM missing or empty after download"; exit 1; }
+          test -s "$GITHUB_WORKSPACE/sbom-frontend.cdx.json" || { echo "::error::frontend SBOM missing or empty after download"; exit 1; }
+
+      - name: Attest build provenance for SBOMs
+        id: attest
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            sbom-backend.cdx.json
+            sbom-frontend.cdx.json
+
+      - name: Surface attestation URL
+        # Chunk E of P1-08 will scrape this from the run log / attestations
+        # API and persist it keyed by session_id + commit_sha. For now,
+        # echoing makes it discoverable in the run summary.
+        env:
+          ATTESTATION_ID: ${{ steps.attest.outputs.attestation-id }}
+          ATTESTATION_URL: ${{ steps.attest.outputs.attestation-url }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          echo "Attestation ID:  $ATTESTATION_ID"
+          echo "Attestation URL: $ATTESTATION_URL"
+          echo "Bundle path:     $BUNDLE_PATH"

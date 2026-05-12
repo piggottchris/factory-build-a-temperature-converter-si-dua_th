@@ -1,0 +1,45 @@
+[project]
+name = "darkpoc-backend"
+version = "0.1.0"
+description = "FastAPI backend hosting MAF agents via the AG-UI protocol"
+requires-python = ">=3.12"
+dependencies = [
+    "agent-framework-core==1.2.2",
+    # Anthropic / Claude is the chosen provider for every factory-built POC.
+    # Same API key as the factory itself uses (Claude Agent SDK), no second vendor.
+    # Both packages are at 1.0.0b... beta as of May 2026; pinned to a snapshot
+    # that matches agent-framework-ag-ui's beta line.
+    "agent-framework-anthropic==1.0.0b260429",
+    "agent-framework-ag-ui==1.0.0b260429",
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.32,<1.0",
+    "python-dotenv>=1.0,<2.0",
+    # Datadog instrumentation — pre-wired by the factory's Phase H so every
+    # generated POC ships observable. ddtrace auto-instruments FastAPI +
+    # httpx + asyncio; the LLMObs sub-package captures Anthropic SDK calls
+    # with prompt/completion redaction handled centrally in dd_init.py.
+    "ddtrace>=2.0,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["app/tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

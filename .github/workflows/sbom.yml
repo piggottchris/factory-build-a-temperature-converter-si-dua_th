@@ -1,0 +1,166 @@
+name: sbom
+
+# CycloneDX SBOM generation for backend (Python) + frontend (Node). Single job,
+# two steps; both SBOMs land at $GITHUB_WORKSPACE and ship as one workflow
+# artifact named `sboms`. Job name `sbom` is the branch-protection required-
+# check context that the factory repo's infra/github-branch-protection.json
+# gates merges on (set in Chunk D of the P1-08 loop).
+#
+# No untrusted github.event.* inputs are interpolated into run blocks here;
+# only checkout + setup-* + project-resident lockfiles drive each step.
+#
+# Hardening (post-review):
+#   - cyclonedx-py invoked via `python -m cyclonedx_py` (not the shim) so
+#     `environment` introspection runs against the exact interpreter that
+#     ran the installs. Shim shebangs can resolve to a different python.
+#   - Three-stage validation: file exists + parses as JSON + has >= N
+#     components + required project components present by name. The
+#     name-presence check catches the introspect-wrong-env failure mode
+#     where the count floor is satisfied by cyclonedx's own deps alone.
+#   - `pip check` after install catches the resolver-backtracking trap
+#     where pip warns but exits 0 with conflicting versions.
+#   - All paths are explicit `$GITHUB_WORKSPACE/...` so a runner-image
+#     change to working-dir semantics can't silently land files elsewhere.
+#   - npx exact-pinned to a specific 4.x release (not the floating major).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    name: sbom
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scrub any stale workspace SBOMs (self-hosted-runner safety)
+        run: rm -f "$GITHUB_WORKSPACE"/sbom-*.cdx.json
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps + cyclonedx-bom + pip check
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install "cyclonedx-bom>=7,<8"
+          pip install -e ".[dev]"
+          # Catch resolver-backtracking false-success: pip can emit
+          # "ERROR: pip's dependency resolver does not currently take into
+          # account..." while still exiting 0. `pip check` fails on any
+          # installed-graph inconsistency.
+          pip check
+
+      - name: Generate backend SBOM (CycloneDX JSON)
+        working-directory: backend
+        run: |
+          # `python -m cyclonedx_py` (NOT the cyclonedx-py shim) so the
+          # `environment` introspection runs against THIS interpreter — the
+          # one that just ran pip install. The shim shebang can resolve to
+          # a different python on multi-python runners.
+          python -m cyclonedx_py environment \
+            --of JSON \
+            --output-file "$GITHUB_WORKSPACE/sbom-backend.cdx.json"
+
+      - name: Validate backend SBOM (file + JSON + count + names)
+        run: |
+          python -c '
+          import json, os, sys
+          p = os.path.join(os.environ["GITHUB_WORKSPACE"], "sbom-backend.cdx.json")
+          if not (os.path.exists(p) and os.path.getsize(p) > 0):
+              sys.exit(f"::error::backend SBOM file missing or empty at {p}")
+          try:
+              with open(p) as f:
+                  doc = json.load(f)
+          except Exception as e:
+              sys.exit(f"::error::backend SBOM not valid JSON: {e}")
+          components = doc.get("components", [])
+          print(f"backend SBOM components={len(components)}")
+          # Count floor catches `components: []`. Name presence catches the
+          # case where cyclonedx introspects its OWN deps (~10 packages
+          # like packageurl-python, py-serializable) and misses the project.
+          if len(components) < 10:
+              sys.exit(f"::error::backend SBOM has only {len(components)} components (<10) — semantically empty evidence")
+          names = {(c.get("name") or "").lower() for c in components}
+          required = {"fastapi", "pydantic"}
+          missing = required - names
+          if missing:
+              sys.exit(f"::error::backend SBOM missing required components {sorted(missing)} — cyclonedx likely introspected the wrong environment")
+          '
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        # npm ci serves cache warmup + lockfile-validity check. The SBOM
+        # step uses --package-lock-only (reads the lockfile directly, NOT
+        # node_modules), so this install is not strictly required for SBOM
+        # correctness — but failing fast on a broken lockfile is cheaper
+        # than failing inside the SBOM generator.
+        run: npm ci
+
+      - name: Generate frontend SBOM (CycloneDX JSON)
+        working-directory: frontend
+        run: |
+          # --package-lock-only is LOAD-BEARING: makes the SBOM a pure
+          # function of the lockfile, immune to partial-install drift.
+          # DO NOT remove this flag — without it the SBOM would silently
+          # reflect whatever broken state npm ci left behind.
+          #
+          # Exact version pin (4.2.1 = latest stable 4.x as of 2026-05).
+          # Major-range pins (@4) let supply-chain compromises of any patch
+          # release poison the SBOM. Bump deliberately; Dependabot/Renovate
+          # can suggest upgrades.
+          npx --yes @cyclonedx/cyclonedx-npm@4.2.1 \
+            --package-lock-only \
+            --output-format JSON \
+            --output-file "$GITHUB_WORKSPACE/sbom-frontend.cdx.json"
+
+      - name: Validate frontend SBOM (file + JSON + count)
+        run: |
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+          const p = path.join(process.env.GITHUB_WORKSPACE, "sbom-frontend.cdx.json");
+          if (!fs.existsSync(p) || fs.statSync(p).size === 0) {
+            console.log(`::error::frontend SBOM file missing or empty at ${p}`);
+            process.exit(1);
+          }
+          let doc;
+          try { doc = JSON.parse(fs.readFileSync(p, "utf8")); }
+          catch (e) { console.log(`::error::frontend SBOM not valid JSON: ${e.message}`); process.exit(1); }
+          const components = doc.components || [];
+          console.log(`frontend SBOM components=${components.length}`);
+          // Floor of 50 — CopilotKit + Next.js pulls hundreds of transitive
+          // deps. <50 means lockfile is empty or the tool silently failed.
+          if (components.length < 50) {
+            console.log(`::error::frontend SBOM has only ${components.length} components (<50) — semantically empty evidence`);
+            process.exit(1);
+          }
+          '
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          # Paths are workspace-relative (upload-artifact@v4 default cwd is
+          # $GITHUB_WORKSPACE). Generators above write to $GITHUB_WORKSPACE
+          # explicitly so the glob resolves consistently.
+          name: sboms
+          path: |
+            sbom-backend.cdx.json
+            sbom-frontend.cdx.json
+          retention-days: 90
+          if-no-files-found: error
