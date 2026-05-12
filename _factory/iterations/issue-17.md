@@ -1,3 +1,39 @@
+## Iteration 4 — Test and Evaluation Coverage: boundary, accumulation, mixed-verdict, and count-accuracy tests
+
+- Critique: The 83-test suite had four concrete coverage gaps:
+  (a) **Boundary exactly at budget** — the spec requires `≤ budget` to pass, but no test verified
+  the case where a file's gzip output equals the budget exactly (10 240 B for JS, 4 096 B for
+  CSS). A strict `<` bug in the comparison would pass every other test and silently violate the
+  contract.
+  (b) **Multi-file accumulation** — all over-budget tests used a single large file. A bug where
+  `total` was reset to each file's size rather than accumulated would pass every existing test
+  (the single file is already over budget) while breaking the real use-case of two medium-sized
+  bundles whose combined size crosses the threshold.
+  (c) **Mixed pass/fail** — the only multi-type test had both JS and CSS failing simultaneously.
+  A bug that short-circuited on the first violation without evaluating the second type would
+  pass every test. No test verified "JS within budget + CSS over budget → exit 1" or the
+  reverse.
+  (d) **File-count label accuracy for skipped entries** — the UX iteration added an `N files
+  checked` label, but no test checked that skipped symlinks or `.js`-named directories were not
+  counted in that label, meaning an off-by-one in the count logic could go undetected.
+
+- Change: Added 8 new tests across 4 focused groups:
+  1. **Accumulation (JS + CSS)**: two ~5 900-byte files each under the JS budget individually
+     (~5 923 B gzip each), combined ~11 846 B > 10 240 B → exit 1.  Mirrored for CSS.
+  2. **Boundary (JS + CSS)**: `randomBytes(10217)` gzip-compresses to exactly 10 240 B; script
+     must exit 0.  `randomBytes(4073)` gzip-compresses to exactly 4 096 B; script must exit 0.
+     The 23-byte gzip overhead for incompressible data is constant (deflate stored-block fixed
+     header/trailer), making these deterministic across runs.
+  3. **Mixed verdict**: small JS + oversized CSS → exit 1, "CSS" in output, no "JS total gzip"
+     violation; large JS + tiny CSS → exit 1, "JS" in output, no "CSS total gzip" violation.
+  4. **File-count accuracy**: one real JS + one symlinked JS → label reads "1 file checked"; one
+     real JS + one `.js`-named directory → label reads "1 file checked".
+
+- Files touched:
+  - `/sandbox/work/issue-17/frontend/tests/check-bundle.test.ts`
+
+- Tests: 83 passed before → 91 passed after (8 new coverage tests added, all green, no regressions)
+
 ## Iteration 3 — Backend Reliability: safe error handling for I/O failures and directory entries
 
 - Critique: Three failure modes could turn `check-bundle.js` from a clean exit-1 signal into

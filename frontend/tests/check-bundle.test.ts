@@ -172,6 +172,118 @@ describe("check-bundle script", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Accumulation: multiple files of the same type summing over budget
+  // -------------------------------------------------------------------------
+
+  it("exits 1 when two JS files each under budget combine to exceed JS budget", () => {
+    // Each file gzip-compresses to ~5923 B (well under JS_BUDGET of 10 240 B individually).
+    // Combined total ~11 846 B > 10 240 B — tests that totals are accumulated, not checked
+    // per-file.  randomBytes gives incompressible data: gzip(randomBytes(N)) ≈ N + 23 B.
+    writeFileSync(join(tmpDir, "chunk1.js"), randomBytes(5900));
+    writeFileSync(join(tmpDir, "chunk2.js"), randomBytes(5900));
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(1);
+    const output = result.stderr + result.stdout;
+    expect(output).toContain("JS");
+    expect(output).toContain("10240");
+  });
+
+  it("exits 1 when two CSS files each under budget combine to exceed CSS budget", () => {
+    // Each file gzip-compresses to ~2423 B (under CSS_BUDGET of 4 096 B individually).
+    // Combined total ~4846 B > 4 096 B.
+    writeFileSync(join(tmpDir, "theme1.css"), randomBytes(2400));
+    writeFileSync(join(tmpDir, "theme2.css"), randomBytes(2400));
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(1);
+    const output = result.stderr + result.stdout;
+    expect(output).toContain("CSS");
+    expect(output).toContain("4096");
+  });
+
+  // -------------------------------------------------------------------------
+  // Boundary: exactly at budget must pass (spec: ≤ budget)
+  // -------------------------------------------------------------------------
+
+  it("exits 0 when a JS file gzip size equals exactly JS_BUDGET (boundary: ≤ is pass)", () => {
+    // randomBytes(10217) gzip-compresses to exactly 10 240 B under Node's default zlib
+    // settings (deflate stored-block for incompressible data has a fixed 23-byte overhead).
+    // At the budget boundary the script must exit 0, not 1.
+    writeFileSync(join(tmpDir, "exact.js"), randomBytes(10217));
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("PASSED");
+  });
+
+  it("exits 0 when a CSS file gzip size equals exactly CSS_BUDGET (boundary: ≤ is pass)", () => {
+    // randomBytes(4073) gzip-compresses to exactly 4 096 B.
+    writeFileSync(join(tmpDir, "exact.css"), randomBytes(4073));
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("PASSED");
+  });
+
+  // -------------------------------------------------------------------------
+  // Mixed pass/fail: one type within budget, the other over
+  // -------------------------------------------------------------------------
+
+  it("exits 1 when JS is within budget but CSS exceeds budget (mixed pass/fail)", () => {
+    // Small JS (well within 10 240 B) + large CSS (over 4 096 B) must still exit 1.
+    writeFileSync(join(tmpDir, "app.js"), 'console.log("tiny")');
+    writeFileSync(join(tmpDir, "app.css"), randomBytes(5 * 1024));
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(1);
+    const output = result.stderr + result.stdout;
+    // CSS violation reported
+    expect(output).toContain("CSS");
+    expect(output).toContain("4096");
+    // JS is fine — must not report a JS violation
+    expect(output).not.toContain("JS total gzip");
+  });
+
+  it("exits 1 when CSS is within budget but JS exceeds budget (mixed pass/fail)", () => {
+    // Small CSS + large JS: exit 1 with JS violation only.
+    writeFileSync(join(tmpDir, "app.js"), randomBytes(20 * 1024));
+    writeFileSync(join(tmpDir, "app.css"), "body{color:red}");
+    const result = runScript(tmpDir);
+    expect(result.status).toBe(1);
+    const output = result.stderr + result.stdout;
+    expect(output).toContain("JS");
+    expect(output).toContain("10240");
+    // CSS is fine — must not report a CSS violation
+    expect(output).not.toContain("CSS total gzip");
+  });
+
+  // -------------------------------------------------------------------------
+  // File-count label accuracy: skipped entries must not inflate the count
+  // -------------------------------------------------------------------------
+
+  it("file count in verdict excludes skipped symlinks", () => {
+    // One real JS file + one symlinked JS file.  Only the real file should be counted.
+    const targetFile = join(tmpDir, "secret.bin");
+    writeFileSync(targetFile, randomBytes(100));
+    const assetsDir = join(tmpDir, "assets3");
+    mkdirSync(assetsDir);
+    writeFileSync(join(assetsDir, "real.js"), 'console.log("ok")');
+    symlinkSync(targetFile, join(assetsDir, "linked.js"));
+
+    const result = runScript(assetsDir);
+    // Only 1 real file was measured
+    expect(result.stdout).toContain("1 file checked");
+    expect(result.stdout).not.toContain("2 files checked");
+  });
+
+  it("file count in verdict excludes directory entries with .js names", () => {
+    // One real JS file + one directory named 'skipped.js'.
+    // The verdict label must count only the real file.
+    mkdirSync(join(tmpDir, "skipped.js"));
+    writeFileSync(join(tmpDir, "real.js"), 'console.log("ok")');
+
+    const result = runScript(tmpDir);
+    expect(result.stdout).toContain("1 file checked");
+    expect(result.stdout).not.toContain("2 files checked");
+  });
+
+  // -------------------------------------------------------------------------
   // Non-JS/CSS files are ignored
   // -------------------------------------------------------------------------
 
