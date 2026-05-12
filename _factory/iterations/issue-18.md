@@ -1,3 +1,19 @@
+## Iteration 5 — Product Acceptance: systematic audit confirmed all criteria met; NO-OP
+
+- Critique: No gaps found. A full systematic audit of every PRODUCT_ACCEPTANCE.md criterion was performed against the live artifacts:
+  1. `checkNoInlineStyles`, `checkNoInlineScripts`, `checkSRI`, `checkSecurityHeaders`, `checkCSP` all exported from `scripts/check-security.js` — verified.
+  2. `frontend/dist/index.html` exists with compliant SRI attributes (sha384, 64-char hash, crossorigin="anonymous") and no inline styles or scripts — verified.
+  3. `frontend/_headers` exists with all 5 required headers (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy); CSP contains `script-src 'self'` and omits `unsafe-inline` — verified.
+  4. `"check:security": "node scripts/check-security.js"` present in `package.json` — verified.
+  5. `node scripts/check-security.js` exits 0 with "5/5 checks passed" on clean fixture — verified via manual invocation.
+  6. Injecting `<script>alert(1)</script>` into `dist/index.html` exits 1 with "[inline-script]" message — covered by Iteration 4 injection tests and manually re-confirmed.
+  7. All 176 vitest tests pass (55 security tests + 60 dom tests + 59 convert tests + 2 example tests) — verified.
+  8. All 8 success-criteria checkboxes in PRODUCT_ACCEPTANCE.md already ticked correctly — no doc corrections needed.
+  The "Known Limitations" section correctly states none. No code or documentation change is required; this iteration records the acceptance audit result.
+- Change: None (NO-OP). All acceptance criteria are fully satisfied by prior iterations.
+- Files touched: `_factory/iterations/issue-18.md` (this record only)
+- Tests: 176 passed / 0 failed (unchanged)
+
 ## Iteration 4 — Test and Evaluation Coverage: CLI injection tests covering the product-acceptance contract and multi-failure summary
 
 - Critique: The test suite had a directly-named unchecked product acceptance criterion: "Injecting `<script>alert(1)</script>` into `dist/index.html` must cause the script to exit 1 with a descriptive failure message." No test exercised this end-to-end. Every previous test of `checkNoInlineScripts` was a unit test passing a synthetic string; none mutated the real `dist/index.html` fixture and invoked the full CLI pipeline. This was the highest-risk gap — a regression could silently break the acceptance criterion and neither CI nor the test suite would catch it. A secondary gap: `run()` is documented to collect all check failures and list them all in the summary, but no test verified the "all failures reported" property. A developer could introduce a `return false` early-exit inside the check loop and the test suite would not catch the regression until a user noticed the summary only showed the first failure.
