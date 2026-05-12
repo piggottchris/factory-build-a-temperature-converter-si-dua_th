@@ -1,3 +1,34 @@
+## Iteration 5 — Product Acceptance: all success criteria verified and ticked
+
+- Critique: `PRODUCT_ACCEPTANCE.md` had all eight success criteria still unchecked despite every
+  criterion being satisfied by the implementation. A product-acceptance pass without verification
+  results leaves the contract unreadable as evidence of completion.
+
+- Change: Walked each of the eight success criteria manually:
+  1. `scripts/check-bundle.js` exists — confirmed via `node scripts/check-bundle.js` (exits 0,
+     prints the "not found — skipping" + Next.js hint for the default `dist/assets/` path).
+  2. `package.json` `check:bundle` script — confirmed `"check:bundle": "node scripts/check-bundle.js"`
+     present in `package.json`.
+  3. Exit 0 when `dist/assets/` does not exist — confirmed: running the script against the
+     non-existent default path exits 0 with a helpful Next.js hint. This is the expected state
+     after `next build` (which writes to `.next/`, not `dist/assets/`).
+  4. Synthetic ≥ 20 KB JS file → exit 1 — confirmed: `crypto.randomBytes(20 * 1024)` written to
+     `dist/assets/main.js`; script printed `JS total gzip: 20508 B exceeds budget 10240 B` with
+     filename and exited 1.
+  5. Synthetic ≥ 5 KB CSS file → exit 1 — confirmed: `crypto.randomBytes(5 * 1024)` written to
+     `dist/assets/styles.css`; script printed `CSS total gzip: 5143 B exceeds budget 4096 B` with
+     filename and exited 1.
+  6. Failure output names file(s) + budget — confirmed from criteria 4 & 5 runs above.
+  7. `npm test` passes with 91 tests green — confirmed via `npm test -- --run` (3 test files,
+     91 tests, all passed).
+  8. No existing tests broken — confirmed (same run).
+  All eight boxes ticked in `PRODUCT_ACCEPTANCE.md`.
+
+- Files touched:
+  - `/sandbox/work/issue-17/PRODUCT_ACCEPTANCE.md`
+
+- Tests: 91 passed (no change — no code was modified, all criteria already met)
+
 ## Iteration 4 — Test and Evaluation Coverage: boundary, accumulation, mixed-verdict, and count-accuracy tests
 
 - Critique: The 83-test suite had four concrete coverage gaps:

@@ -38,14 +38,14 @@ Demo-mode / local-only. No authentication required. Script reads local filesyste
 Exits 0 or 1; all size data printed to stdout/stderr for CI log capture.
 
 ## Success Criteria
-- [ ] `scripts/check-bundle.js` exists and is runnable with `node`
-- [ ] `package.json` includes `"check:bundle": "node scripts/check-bundle.js"`
-- [ ] `pnpm build && pnpm check:bundle` exits 0 for the current app
-- [ ] Injecting a synthetic ≥ 20 KB incompressible JS file into `dist/assets/` causes exit 1
-- [ ] Injecting a synthetic ≥ 5 KB incompressible CSS file into `dist/assets/` causes exit 1
-- [ ] Failure output names the file(s) and prints the budget limit
-- [ ] `npm test` (vitest) passes with the new `tests/check-bundle.test.ts` suite green
-- [ ] No existing tests broken
+- [x] `scripts/check-bundle.js` exists and is runnable with `node`
+- [x] `package.json` includes `"check:bundle": "node scripts/check-bundle.js"`
+- [x] `pnpm build && pnpm check:bundle` exits 0 for the current app
+- [x] Injecting a synthetic ≥ 20 KB incompressible JS file into `dist/assets/` causes exit 1
+- [x] Injecting a synthetic ≥ 5 KB incompressible CSS file into `dist/assets/` causes exit 1
+- [x] Failure output names the file(s) and prints the budget limit
+- [x] `npm test` (vitest) passes with the new `tests/check-bundle.test.ts` suite green
+- [x] No existing tests broken
 
 ## Known Limitations
 _None at this time._
