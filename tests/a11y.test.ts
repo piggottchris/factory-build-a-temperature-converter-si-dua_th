@@ -211,3 +211,51 @@ describe('#sign-toggle accessible label', () => {
     expect(ariaLabel || visibleText).toBeTruthy()
   })
 })
+
+// ---------------------------------------------------------------------------
+// sign-toggle aria-pressed — initial HTML state and JS sync
+// ---------------------------------------------------------------------------
+describe('#sign-toggle aria-pressed', () => {
+  it('#sign-toggle has aria-pressed attribute in the initial HTML', () => {
+    const btn = document.getElementById('sign-toggle')!
+    expect(btn.hasAttribute('aria-pressed')).toBe(true)
+  })
+
+  it('#sign-toggle aria-pressed is "false" in the initial HTML (no negative sign active)', () => {
+    const btn = document.getElementById('sign-toggle')!
+    expect(btn.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('syncSignTogglePressed sets aria-pressed="true" when value starts with "-"', async () => {
+    const { syncSignTogglePressed } = await import('../src/main.ts')
+    const attrs: Record<string, string> = {}
+    const fakeBtn = {
+      setAttribute: (name: string, value: string) => { attrs[name] = value },
+    } as unknown as HTMLButtonElement
+
+    syncSignTogglePressed(fakeBtn, '-42')
+    expect(attrs['aria-pressed']).toBe('true')
+  })
+
+  it('syncSignTogglePressed sets aria-pressed="false" when value has no leading minus', async () => {
+    const { syncSignTogglePressed } = await import('../src/main.ts')
+    const attrs: Record<string, string> = {}
+    const fakeBtn = {
+      setAttribute: (name: string, value: string) => { attrs[name] = value },
+    } as unknown as HTMLButtonElement
+
+    syncSignTogglePressed(fakeBtn, '42')
+    expect(attrs['aria-pressed']).toBe('false')
+  })
+
+  it('syncSignTogglePressed sets aria-pressed="false" for an empty input value', async () => {
+    const { syncSignTogglePressed } = await import('../src/main.ts')
+    const attrs: Record<string, string> = {}
+    const fakeBtn = {
+      setAttribute: (name: string, value: string) => { attrs[name] = value },
+    } as unknown as HTMLButtonElement
+
+    syncSignTogglePressed(fakeBtn, '')
+    expect(attrs['aria-pressed']).toBe('false')
+  })
+})

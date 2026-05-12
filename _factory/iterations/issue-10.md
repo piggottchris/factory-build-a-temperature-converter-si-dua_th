@@ -9,3 +9,16 @@
   - `tests/security.test.ts` — new file, 3 source-level security assertions
 
 - Tests: 19 passed before → 22 passed after (3 new security tests added, 0 failures)
+
+## Iteration 2 — UX/Product Polish: aria-pressed on #sign-toggle tracks negative-sign state
+
+- Critique: `#sign-toggle` is a stateful toggle button (pressing it flips the input between positive and negative), but it carried no `aria-pressed` attribute. Without `aria-pressed`, screen readers announce only the button label — "Toggle negative sign" — and never tell the user whether the negative sign is currently active. A blind user who presses the button twice without moving focus has no reliable way to know whether they are back to a positive value. This is a genuine interaction-state gap: WAI-ARIA 1.1 §6.6.4 defines `aria-pressed` exactly for toggle buttons, and its absence here violates the pattern. The `±` glyph alone conveys no state whatsoever to assistive technology.
+
+- Change: Added `aria-pressed="false"` to the initial `<button>` element in `index.html`. Exported a new pure helper `syncSignTogglePressed(button, inputValue)` from `src/main.ts` that sets `aria-pressed="true"` when the input value begins with `"-"` and `"false"` otherwise. The `initDom()` click handler now calls `syncSignTogglePressed` after each toggle so the button immediately reports its new pressed state. An `input` event listener on `#celsius-input` also calls `syncSignTogglePressed` so that manual edits (typing or deleting a minus sign) keep `aria-pressed` consistent. Five new tests in `tests/a11y.test.ts` cover: initial HTML attribute presence, initial value of `"false"`, and all three branches of `syncSignTogglePressed` (negative value, positive value, empty string).
+
+- Files touched:
+  - `index.html` — added `aria-pressed="false"` to `#sign-toggle`
+  - `src/main.ts` — exported `syncSignTogglePressed`, called in click and input handlers
+  - `tests/a11y.test.ts` — 5 new tests for aria-pressed initial state and JS sync
+
+- Tests: 22 passed before → 27 passed after (5 new aria-pressed tests added, 0 failures)

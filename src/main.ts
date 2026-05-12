@@ -4,6 +4,9 @@
  * Exports pure helper functions so unit tests can exercise them without a
  * real DOM.  The `initDom()` call at the bottom wires everything up when
  * loaded in a browser.
+ *
+ * Iteration 2: #sign-toggle now tracks its toggled state via aria-pressed so
+ * that screen readers can announce "Toggle negative sign — pressed / not pressed".
  */
 
 // ---------------------------------------------------------------------------
@@ -43,6 +46,23 @@ export function toggleSign(currentValue: string): string {
   return '-' + currentValue
 }
 
+/**
+ * Synchronise the aria-pressed attribute on #sign-toggle to match whether
+ * the current input value starts with a minus sign.
+ *
+ *   value starts with '-' → aria-pressed="true"   (sign is active / pressed)
+ *   otherwise             → aria-pressed="false"  (sign is not active)
+ *
+ * This lets screen readers announce "Toggle negative sign — pressed" when the
+ * negative sign is active, rather than leaving state entirely implicit.
+ */
+export function syncSignTogglePressed(
+  button: HTMLButtonElement,
+  inputValue: string,
+): void {
+  button.setAttribute('aria-pressed', inputValue.startsWith('-') ? 'true' : 'false')
+}
+
 // ---------------------------------------------------------------------------
 // Browser-side wiring — skipped when imported in Node / vitest
 // ---------------------------------------------------------------------------
@@ -61,8 +81,15 @@ function initDom(): void {
   if (input && signToggle) {
     signToggle.addEventListener('click', () => {
       input.value = toggleSign(input.value)
+      syncSignTogglePressed(signToggle, input.value)
       input.dispatchEvent(new Event('input'))
       input.focus()
+    })
+
+    // Keep aria-pressed in sync when the user edits the input directly
+    // (e.g. types a minus sign or deletes it by hand).
+    input.addEventListener('input', () => {
+      syncSignTogglePressed(signToggle, input.value)
     })
   }
 
