@@ -1,67 +1,54 @@
-# Product Acceptance Contract — Issue #3
+# Product Acceptance Contract — Issue #16
 
 ## Feature
-`tests/convert.test.ts`: unit tests for the temperature-converter's parser, math, and formatter utilities, covering the full behaviour specification that drives the frontend convert library.
+Static host deploy config: config file emitting all five required security headers.
 
 ## Product Archetype
-Developer tooling / test coverage layer for a temperature-converter POC built on FastAPI + MAF + CopilotKit.
+Infrastructure / security hardening layer for the temperature-converter POC.  
+Commits a host-specific deployment configuration file so that every response
+from the chosen CDN/host carries the five mandated security headers.
 
 ## Primary User Journey
-A developer runs `npm test` (or `pnpm test`) from `frontend/` and sees a green suite confirming that:
-- the temperature-input **parser** correctly classifies every edge-case string into `empty`, `pending`, `valid`, or `invalid`,
-- the **math** helpers produce exact conversion results for Celsius → Fahrenheit and Celsius → Kelvin,
-- the **formatter** rounds and formats numbers according to the half-away-from-zero rule.
+1. A developer commits `vercel.json` (or equivalent) to the repo.
+2. On deploy, the CDN/host picks up the header rules automatically.
+3. Running `curl -I <deployed-url>` shows all five security headers with exact required values.
+4. A static validation script (`check:security`) can verify the config file in CI without a live deployment.
 
 ## Requirements
 
-### Test coverage (acceptance criteria)
+### Deployment configuration file
+- File: `vercel.json` at the repo root
+- Applies to all routes (`/(.*)`):
 
-#### Parser
-| Input | Expected status | Notes |
-|-------|-----------------|-------|
-| `''`, `'   '` | `empty` | blank / whitespace-only |
-| `-`, `.`, `-.`, `-0`, `1.`, `-1.` | `pending` | incomplete-number UI state |
-| `0`, `100`, `-40`, `36.6`, `.5`, `-.5` | `valid` with correct `value` | |
-| `abc`, `12abc`, `1.2.3`, `--5`, `1,5`, `1e2`, `2.5e-3` | `invalid: format` | bad characters / structure |
-| `1500000`, `-1000001` | `invalid: range` | outside ±1 000 000 |
-| 33-character string | `invalid: format` | length guard |
-| Whitespace-padded valid number | `valid` (trim applied) | |
+| Header | Required value |
+|--------|---------------|
+| `Content-Security-Policy` | `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `no-referrer` |
+| `Permissions-Policy` | `accelerometer=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), microphone=(), usb=()` |
 
-#### Math
-| Call | Expected |
-|------|----------|
-| `celsiusToFahrenheit(100)` | `212` |
-| `celsiusToFahrenheit(-40)` | `-40` |
-| `celsiusToFahrenheit(0)` | `32` |
-| `celsiusToKelvin(0)` | `273.15` |
-
-#### Formatter
-| Call | Expected |
-|------|----------|
-| `formatNumber(212)` | `'212.00'` |
-| `formatNumber(-0)` | `'0.00'` |
-| `formatNumber(97.875)` | rounds per half-away-from-zero |
-| Several near-zero and negative cases | see test file |
-
-### Environment
-- Node environment (no jsdom required)
-- Vitest test runner, discovered under `frontend/tests/**/*.test.ts`
-- `npm test` / `pnpm test` in `frontend/` must be green
+### Static validation
+- A `check:security` npm script in `frontend/package.json` validates the config file offline.
+- Vitest unit tests in `frontend/test/vercel-headers.test.ts` assert all five headers with exact values.
 
 ### Security
-Demo-mode / local-only. No authentication required. Input validation enforced in the parser (max length 32, range ±1 000 000, format allowlist).
+- All headers follow the principle of least privilege (allowlist approach).
+- `X-Frame-Options: DENY` and `frame-ancestors 'none'` in CSP provide double protection against clickjacking.
+- GitHub Pages is explicitly excluded; Vercel is the target host.
 
 ### Observability
-N/A for a pure unit-test PR — no runtime observability hooks needed.
+N/A — this is a static config file; no runtime observability hooks needed.
 
 ## Success Criteria
-- [x] All parser edge-cases covered (≥ 14 distinct inputs tested)
-- [x] All math conversions tested (4 assertions)
-- [x] All formatter cases tested (≥ 4 assertions)
-- [x] `npm test` exits 0 in the `frontend/` directory
-- [x] `frontend/lib/convert.ts` source file exists with exported `parseTemperature`, `celsiusToFahrenheit`, `celsiusToKelvin`, `formatNumber`
-- [x] Vitest config updated to discover `tests/` directory
-- [x] No existing tests broken
+- [ ] `vercel.json` exists at the repo root
+- [ ] `vercel.json` applies headers to all routes via `/(.*)`
+- [ ] All 5 headers present with exact required values in `vercel.json`
+- [ ] `frontend/test/vercel-headers.test.ts` tests pass (vitest green)
+- [ ] `check:security` script added to `frontend/package.json`
+- [ ] `npm test` in `frontend/` exits 0
+- [ ] No existing tests broken
 
 ## Known Limitations
-_None at this time._
+- Actual header delivery can only be verified against a live Vercel deployment (not testable in CI without deployment).
+- The `check:security` CI integration (a next task per issue body) is beyond this issue's scope — this issue adds the config file and a static validator only.
