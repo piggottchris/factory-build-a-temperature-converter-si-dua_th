@@ -23,31 +23,31 @@ A keyboard or assistive-technology user visits the temperature converter card:
 ### ARIA (`src/main.ts`)
 | Requirement | Status |
 |---|---|
-| `aria-describedby` on `#celsius-input` initially contains only `celsius-helper` | [ ] |
-| JS adds `celsius-error` to `aria-describedby` when error is active | [ ] |
-| JS removes `celsius-error` from `aria-describedby` when error is cleared | [ ] |
-| Output `<dd>` rows have accessible names from their visible `<dt>` labels | [ ] |
+| `aria-describedby` on `#celsius-input` initially contains only `celsius-helper` | [x] |
+| JS adds `celsius-error` to `aria-describedby` when error is active | [x] |
+| JS removes `celsius-error` from `aria-describedby` when error is cleared | [x] |
+| Output `<dd>` rows have accessible names from their visible `<dt>` labels | [x] |
 
 ### Focus styles (`src/styles.css`)
 | Requirement | Status |
 |---|---|
-| `:focus-visible` on `#celsius-input` — minimum `2px solid` outline, clearly visible | [ ] |
-| `:focus-visible` on `#sign-toggle` — same style family | [ ] |
-| No `outline: none` globally (at `*`, `html`, or `body` level) | [ ] |
+| `:focus-visible` on `#celsius-input` — minimum `2px solid` outline, clearly visible | [x] |
+| `:focus-visible` on `#sign-toggle` — same style family | [x] |
+| No `outline: none` globally (at `*`, `html`, or `body` level) | [x] |
 
 ### Tab order
 | Requirement | Status |
 |---|---|
-| Natural DOM order: input → `±` button | [ ] |
-| No stray `tabindex` on `#celsius-input` | [ ] |
-| No stray `tabindex` on `#sign-toggle` | [ ] |
+| Natural DOM order: input → `±` button | [x] |
+| No stray `tabindex` on `#celsius-input` | [x] |
+| No stray `tabindex` on `#sign-toggle` | [x] |
 
 ### Structure
 | Requirement | Status |
 |---|---|
-| `#sign-toggle` button present in DOM | [ ] |
-| `#celsius-error` is in DOM with `hidden` attribute initially | [ ] |
-| `#celsius-error` has `aria-live="polite"` | [ ] |
+| `#sign-toggle` button present in DOM | [x] |
+| `#celsius-error` is in DOM with `hidden` attribute initially | [x] |
+| `#celsius-error` has `aria-live="polite"` | [x] |
 
 ## Security Posture
 Demo / offline mode: static HTML/CSS/JS only — no network calls, no auth, no data collection.
@@ -57,11 +57,11 @@ No inline scripts or styles (CSP-friendly). No third-party fonts or image CDNs.
 Not applicable to static client-side code.
 
 ## Success Criteria
-- [ ] All a11y tests pass (`npm test` at repo root)
-- [ ] `#celsius-input` tab produces visible focus ring (≥ 2px solid)
-- [ ] `#sign-toggle` tab produces visible focus ring (same style family)
-- [ ] `aria-describedby` toggling verified by unit test
-- [ ] No global `outline: none` in CSS
+- [x] All a11y tests pass (`npm test` at repo root)
+- [x] `#celsius-input` tab produces visible focus ring (≥ 2px solid)
+- [x] `#sign-toggle` tab produces visible focus ring (same style family)
+- [x] `aria-describedby` toggling verified by unit test
+- [x] No global `outline: none` in CSS
 - [ ] Colour contrast ratio ≥ 4.5:1 for all informational text pairs (documented below)
 
 ## Colour Contrast Pairs
