@@ -98,10 +98,16 @@ input {
   font-family: inherit;
 }
 
-input:focus {
+input:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
   border-color: transparent;
+}
+
+/* Remove the default UA focus ring for pointer/touch interactions while
+   keeping it for keyboard navigation (handled by :focus-visible above). */
+input:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .btn {
@@ -142,3 +148,25 @@ input:focus {
     margin-top: 0;
   }
 }
+
+/* ---------------------------------------------------------
+   Motion: respect user's OS-level reduced-motion preference.
+   Any future transition or animation MUST be declared here
+   so it is suppressed automatically for users who opt out.
+   --------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   Dark mode — OUT OF SCOPE for this PR (Issue #5).
+   A `prefers-color-scheme: dark` block with token overrides
+   will be added in the theming pass (planned Issue #12).
+   --------------------------------------------------------- */
