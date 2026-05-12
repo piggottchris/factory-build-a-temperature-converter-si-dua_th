@@ -23,6 +23,7 @@ import {
   celsiusToFahrenheit,
   celsiusToKelvin,
   formatNumber,
+  MAX_LENGTH,
 } from "./convert";
 
 /** Debounce window in milliseconds (matches the spec: 400 ms). */
@@ -49,6 +50,7 @@ export function mountTemperatureWidget(container: HTMLElement): () => void {
             type="text"
             inputmode="decimal"
             autocomplete="off"
+            maxlength="${MAX_LENGTH}"
             aria-describedby="temp-error"
           />
         </div>
