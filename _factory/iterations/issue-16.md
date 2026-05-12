@@ -40,3 +40,16 @@
   - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file)
 
 - Tests: before: 81 frontend / 2 backend passing, 0 failing. After: 81 frontend / 2 backend passing, 0 failing.
+
+## Iteration 3 — Backend Reliability: add security headers to next.config.mjs for local/Docker dev parity
+
+- Critique: `vercel.json` only applies headers when deployed to Vercel. In every other execution environment — `next dev`, `next start` inside the Docker container, `docker-compose up` — the 8 security headers were absent because `next.config.mjs` had no `headers()` function. This means a developer running the app locally, a QA engineer validating via Docker, or a CI integration test against the Docker image would all observe a completely different security posture than production. This is a classic dev/prod parity gap.
+
+- Change: Added a `headers()` async function to `frontend/next.config.mjs` emitting the same 8 headers with identical values to those in `vercel.json`, applied to all routes (`/(.*)`). Added `frontend/test/next-config-headers.test.ts` with 3 tests: (1) the config exports a `headers()` function, (2) a catch-all rule exists, (3) all 8 header values match `vercel.json` exactly — so any future drift between the two files will immediately fail CI.
+
+- Files touched:
+  - `/sandbox/work/issue-16/frontend/next.config.mjs`
+  - `/sandbox/work/issue-16/frontend/test/next-config-headers.test.ts`
+  - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file)
+
+- Tests: before: 81 frontend / 2 backend passing, 0 failing. After: 84 frontend / 2 backend passing, 0 failing.
