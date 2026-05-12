@@ -5,8 +5,14 @@ name: dependency-review
 # advisory. Required-check context for branch protection (Chunk D of the
 # P1-08 supply-chain loop) is `dependency-review / dependency-review`.
 #
-# Why pull_request only: the action requires a base-vs-head diff context;
-# push events don't have a meaningful base to compare against.
+# Why pull_request only (primary trigger): the action requires a base-vs-head
+# diff context; push events don't have a meaningful base to compare against.
+#
+# Why workflow_dispatch (secondary trigger): when the initial pull_request run
+# fails because the GitHub Dependency Graph has not yet been indexed for the
+# branch, a re-run is needed. Bot-authored pushes via GITHUB_TOKEN do not fire
+# pull_request events (GitHub's anti-loop protection), so workflow_dispatch
+# provides an escape hatch to re-trigger the check manually with explicit refs.
 #
 # Why fail-on-severity: high: matches the existing security-audit.yml
 # threshold so operators have one mental model for what blocks merge.
@@ -16,6 +22,19 @@ name: dependency-review
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      base-ref:
+        description: >-
+          Base commit SHA or branch for the dependency comparison.
+          Required when triggering manually (pull_request events supply this
+          automatically from the PR context).
+        required: true
+      head-ref:
+        description: >-
+          Head commit SHA or branch for the dependency comparison.
+          Required when triggering manually.
+        required: true
 
 permissions:
   contents: read
@@ -49,3 +68,9 @@ jobs:
             GPL-3.0-only, GPL-3.0-or-later,
             AGPL-1.0-only, AGPL-1.0-or-later,
             AGPL-3.0-only, AGPL-3.0-or-later
+          # allow-ghsa: []  # no exceptions; all HIGH+critical advisories block merge
+          # When triggered manually (workflow_dispatch), explicit refs are required.
+          # For pull_request events these resolve to empty string and the action
+          # falls back to the PR event context automatically.
+          base-ref: ${{ github.event.pull_request.base.sha || inputs.base-ref }}
+          head-ref: ${{ github.event.pull_request.head.sha || inputs.head-ref }}
