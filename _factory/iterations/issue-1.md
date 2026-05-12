@@ -39,3 +39,16 @@
   - PRODUCT_ACCEPTANCE.md (ticked Observability checkbox)
 
 - Tests: backend 35 passed → 42 passed (7 added); frontend 33 passed (no change). No regressions.
+
+## Iteration 4 — Test and Evaluation Coverage: formatResult, exact tool output format, agent instructions, and boundary completeness
+
+- Critique: Several meaningful coverage gaps remained. (1) `formatResult` in `frontend/app/lib/temperature.ts` was an exported function with zero tests — any breakage in its capitalization, smartRound integration, or error-passthrough would go undetected. (2) `TestConvertTemperatureTool` only verified substrings in the success path (`"212" in result`) rather than the exact output string, so a format change (e.g. removing the "(rounded: ...)" suffix or changing ".4f" to ".2f") would pass the existing tests silently. (3) `TestBuildTemperatureAgent` verified `name` and `tools` but not `instructions`, meaning the load-bearing system-prompt text (which tells the LLM when to call each tool) could be emptied without failing CI. (4) The F→K direction had only one test (boiling); the K→F direction had only one test (boiling); the freezing point (32°F = 273.15K) and K→F absolute zero path were untested. (5) `smartRound` lacked tests for negative zero (`-0`) and very large whole numbers.
+
+- Change: Added 7 Python tests: `test_exact_output_format_boiling`, `test_exact_output_format_crossover`, `test_exact_output_format_freezing_f_to_k` (all asserting exact string equality on tool output), `test_agent_instructions_mention_convert_tool`, `test_agent_instructions_mention_list_units_tool` (asserting instructions text), `test_fahrenheit_to_kelvin_freezing` (32°F → 273.15K), `test_kelvin_to_fahrenheit_absolute_zero` (0K → −459.67°F). Added 9 frontend tests: `formatResult` block (7 cases — successful formatting, capitalization, smartRound integration, below-abs-zero error passthrough, NaN error passthrough, −40 crossover, 32°F→K); `smartRound` edge cases for negative zero and large integers (2 cases). Ticked all 5 Tests checkboxes in PRODUCT_ACCEPTANCE.md.
+
+- Files touched:
+  - backend/app/tests/test_temperature_agent.py
+  - frontend/test/temperature.test.ts
+  - PRODUCT_ACCEPTANCE.md
+
+- Tests: backend 42 passed → 49 passed (7 added); frontend 33 passed → 42 passed (9 added). No regressions.

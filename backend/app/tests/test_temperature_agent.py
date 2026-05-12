@@ -69,10 +69,20 @@ class TestConvertTemperature:
         result = self.convert(212, "fahrenheit", "kelvin")
         assert math.isclose(result, 373.15, rel_tol=1e-6)
 
+    def test_fahrenheit_to_kelvin_freezing(self):
+        """32°F is water's freezing point — should yield 273.15K."""
+        result = self.convert(32, "fahrenheit", "kelvin")
+        assert math.isclose(result, 273.15, rel_tol=1e-6)
+
     # --- Kelvin → Fahrenheit ---
     def test_kelvin_to_fahrenheit_boiling(self):
         result = self.convert(373.15, "kelvin", "fahrenheit")
         assert math.isclose(result, 212.0, rel_tol=1e-6)
+
+    def test_kelvin_to_fahrenheit_absolute_zero(self):
+        """0K → absolute zero in Fahrenheit = -459.67°F."""
+        result = self.convert(0, "kelvin", "fahrenheit")
+        assert math.isclose(result, -459.67, rel_tol=1e-5)
 
     # --- Same-unit pass-through ---
     def test_same_unit_celsius(self):
@@ -177,6 +187,24 @@ class TestBuildTemperatureAgent:
         assert tools is not None
         assert len(tools) >= 2
 
+    def test_agent_instructions_mention_convert_tool(self):
+        """Instructions must reference the conversion tool so the LLM knows when to invoke it."""
+        from unittest.mock import MagicMock
+        from app.agents.temperature_agent import build_temperature_agent
+        mock_client = MagicMock()
+        agent = build_temperature_agent(mock_client)
+        instructions = agent.default_options.get("instructions", "")
+        assert "convert_temperature_tool" in instructions
+
+    def test_agent_instructions_mention_list_units_tool(self):
+        """Instructions must reference the list-units tool so the LLM uses it for unit queries."""
+        from unittest.mock import MagicMock
+        from app.agents.temperature_agent import build_temperature_agent
+        mock_client = MagicMock()
+        agent = build_temperature_agent(mock_client)
+        instructions = agent.default_options.get("instructions", "")
+        assert "list_supported_units_tool" in instructions
+
 
 class TestConvertTemperatureTool:
     """Tests for the MAF tool wrapper (convert_temperature_tool)."""
@@ -190,6 +218,21 @@ class TestConvertTemperatureTool:
         assert "212" in result
         assert "Celsius" in result
         assert "Fahrenheit" in result
+
+    def test_exact_output_format_boiling(self):
+        """Tool output must follow '<value> <From> = <result:.4f> <To> (rounded: <result:.2f>)'."""
+        result = self.tool(100, "celsius", "fahrenheit")
+        assert result == "100 Celsius = 212.0000 Fahrenheit (rounded: 212.00)"
+
+    def test_exact_output_format_crossover(self):
+        """-40 is the C=F crossover; format must be symmetric."""
+        result = self.tool(-40, "celsius", "fahrenheit")
+        assert result == "-40 Celsius = -40.0000 Fahrenheit (rounded: -40.00)"
+
+    def test_exact_output_format_freezing_f_to_k(self):
+        """32°F = 273.15K; verifies Fahrenheit→Kelvin formatting."""
+        result = self.tool(32, "fahrenheit", "kelvin")
+        assert result == "32 Fahrenheit = 273.1500 Kelvin (rounded: 273.15)"
 
     def test_invalid_unit_returns_error_string(self):
         result = self.tool(100, "rankine", "celsius")

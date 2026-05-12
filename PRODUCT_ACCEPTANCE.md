@@ -51,11 +51,11 @@ between Celsius, Fahrenheit, and Kelvin — both via direct tool calls and via n
 - [x] Datadog dd_init integration preserved (no-ops without DD_API_KEY).
 
 ### Tests
-- [ ] Backend: conversion correctness (all 6 unit pairs) — pytest green.
-- [ ] Backend: invalid unit raises ValueError — pytest green.
-- [ ] Backend: absolute zero guard — pytest green.
-- [ ] Backend: smoke — /healthz and /agent route exist — pytest green.
-- [ ] Frontend: vitest smoke passes.
+- [x] Backend: conversion correctness (all 6 unit pairs) — pytest green.
+- [x] Backend: invalid unit raises ValueError — pytest green.
+- [x] Backend: absolute zero guard — pytest green.
+- [x] Backend: smoke — /healthz and /agent route exist — pytest green.
+- [x] Frontend: vitest smoke passes.
 
 ---
 

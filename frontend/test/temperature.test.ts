@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import {
   convertTemperature,
+  formatResult,
   listSupportedUnits,
   smartRound,
   type TemperatureUnit,
@@ -149,6 +150,16 @@ describe("smartRound", () => {
   it("handles zero", () => {
     expect(smartRound(0)).toBe("0");
   });
+
+  it("handles negative zero (-0) as '0'", () => {
+    // IEEE 754 negative zero should render identically to positive zero
+    expect(smartRound(-0)).toBe("0");
+  });
+
+  it("handles very large whole numbers", () => {
+    // e.g. 1 000 000 — should not use scientific notation or add decimals
+    expect(smartRound(1_000_000)).toBe("1000000");
+  });
 });
 
 describe("listSupportedUnits", () => {
@@ -169,5 +180,47 @@ describe("listSupportedUnits", () => {
   it("includes kelvin", () => {
     const units = listSupportedUnits().map((u) => u.toLowerCase());
     expect(units).toContain("kelvin");
+  });
+});
+
+describe("formatResult", () => {
+  it("formats a clean integer result without decimals", () => {
+    // 100°C → 212°F — result should be '100 Celsius = 212 Fahrenheit'
+    const r = formatResult(100, "celsius", "fahrenheit");
+    expect(r).toBe("100 Celsius = 212 Fahrenheit");
+  });
+
+  it("capitalises both unit names", () => {
+    const r = formatResult(0, "celsius", "kelvin");
+    expect(r).toMatch(/^0 Celsius = /);
+    expect(r).toMatch(/Kelvin$/);
+  });
+
+  it("uses smartRound so trailing zeros are stripped", () => {
+    // 0°C → 273.15K — no trailing zeros; smartRound gives "273.15"
+    const r = formatResult(0, "celsius", "kelvin");
+    expect(r).toBe("0 Celsius = 273.15 Kelvin");
+  });
+
+  it("returns the error message when the input is below absolute zero", () => {
+    const r = formatResult(-274, "celsius", "kelvin");
+    expect(r).toMatch(/below absolute zero/i);
+  });
+
+  it("returns the error message for NaN input", () => {
+    const r = formatResult(NaN, "celsius", "fahrenheit");
+    expect(r).toMatch(/finite number/i);
+  });
+
+  it("formats the -40 C=F crossover correctly", () => {
+    // -40 is the temperature where Celsius and Fahrenheit coincide
+    const r = formatResult(-40, "celsius", "fahrenheit");
+    expect(r).toBe("-40 Celsius = -40 Fahrenheit");
+  });
+
+  it("formats Fahrenheit to Kelvin at the freezing point", () => {
+    // 32°F = 273.15K
+    const r = formatResult(32, "fahrenheit", "kelvin");
+    expect(r).toBe("32 Fahrenheit = 273.15 Kelvin");
   });
 });
