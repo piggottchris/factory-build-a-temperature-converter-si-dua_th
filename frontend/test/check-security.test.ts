@@ -15,6 +15,8 @@ import { describe, it, expect } from "vitest";
 import { spawnSync } from "child_process";
 import * as path from "path";
 import * as url from "url";
+import * as os from "os";
+import * as fs from "fs";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const SCRIPT = path.resolve(__dirname, "../scripts/check-security.js");
@@ -27,6 +29,7 @@ const {
   checkSecurityHeaders,
   checkCSP,
   REQUIRED_HEADERS,
+  _readArtefact,
 } = require("../scripts/check-security.js");
 
 // ─── checkNoInlineStyles ──────────────────────────────────────────────────────
@@ -305,6 +308,79 @@ describe("checkCSP", () => {
     const content =
       "/*\n  X-Frame-Options: DENY\n  X-Content-Type-Options: nosniff\n";
     expect(() => checkCSP(content)).toThrow();
+  });
+});
+
+// ─── _readArtefact reliability ───────────────────────────────────────────────
+//
+// Verifies that _readArtefact throws (not process.exit) on missing files so
+// that callers in test harnesses are not terminated unexpectedly.
+
+describe("_readArtefact", () => {
+  it("returns the file contents as a string when the file exists", () => {
+    const tmp = path.resolve(os.tmpdir(), `check-security-test-${process.pid}.txt`);
+    fs.writeFileSync(tmp, "hello fixture");
+    try {
+      expect(_readArtefact(tmp)).toBe("hello fixture");
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  it("throws an Error (does not call process.exit) when the file does not exist", () => {
+    const missing = path.resolve(os.tmpdir(), `check-security-nonexistent-${process.pid}.html`);
+    // If _readArtefact called process.exit() this test would kill the Vitest runner;
+    // the fact that we reach the assertion confirms it throws instead.
+    expect(() => _readArtefact(missing)).toThrow(Error);
+  });
+
+  it("thrown error message includes the file path", () => {
+    const missing = path.resolve(os.tmpdir(), `check-security-nonexistent-${process.pid}.html`);
+    expect(() => _readArtefact(missing)).toThrowError(new RegExp(missing.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  });
+
+  it("thrown error message includes '[check-security]' prefix for easy log filtering", () => {
+    const missing = path.resolve(os.tmpdir(), `check-security-nonexistent-${process.pid}.html`);
+    expect(() => _readArtefact(missing)).toThrowError(/\[check-security\]/);
+  });
+});
+
+// ─── run() missing-artefact resilience ───────────────────────────────────────
+//
+// Verifies that the CLI exits 1 (not crashes) when required files are absent,
+// and that the error message is printed to stderr.
+//
+// The script resolves artefact paths relative to its own __dirname, but both
+// paths can be overridden via CHECK_SECURITY_HTML / CHECK_SECURITY_HEADERS
+// environment variables. The tests use these to point the script at
+// non-existent paths without touching the real fixture files.
+
+describe("run() missing artefact resilience", () => {
+  const MISSING_PATH = path.join(os.tmpdir(), `check-sec-missing-${process.pid}.html`);
+
+  it("exits 1 when dist/index.html is missing", () => {
+    const result = spawnSync(process.execPath, [SCRIPT], {
+      encoding: "utf8",
+      env: { ...process.env, CHECK_SECURITY_HTML: MISSING_PATH },
+    });
+    expect(result.status).toBe(1);
+  });
+
+  it("prints a descriptive error to stderr when dist/index.html is missing", () => {
+    const result = spawnSync(process.execPath, [SCRIPT], {
+      encoding: "utf8",
+      env: { ...process.env, CHECK_SECURITY_HTML: MISSING_PATH },
+    });
+    expect(result.stderr).toMatch(/\[check-security\]/);
+  });
+
+  it("exits 1 when _headers is missing", () => {
+    const MISSING_HEADERS = path.join(os.tmpdir(), `check-sec-missing-headers-${process.pid}.txt`);
+    const result = spawnSync(process.execPath, [SCRIPT], {
+      encoding: "utf8",
+      env: { ...process.env, CHECK_SECURITY_HEADERS: MISSING_HEADERS },
+    });
+    expect(result.status).toBe(1);
   });
 });
 

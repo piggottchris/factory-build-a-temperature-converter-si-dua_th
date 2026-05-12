@@ -26,9 +26,22 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 
 // ─── File locations ──────────────────────────────────────────────────────────
+//
+// Defaults are resolved relative to this file's directory so the script works
+// regardless of the caller's cwd (important for `npm run check:security` which
+// is typically run from frontend/).
+//
+// Both paths can be overridden via environment variables, which makes it
+// possible to point the script at alternative fixtures in CI or tests without
+// touching the source tree.
 
-const DIST_HTML    = path.resolve(__dirname, '..', 'dist', 'index.html');
-const HEADERS_FILE = path.resolve(__dirname, '..', '_headers');
+const DIST_HTML    = process.env.CHECK_SECURITY_HTML
+  ? path.resolve(process.env.CHECK_SECURITY_HTML)
+  : path.resolve(__dirname, '..', 'dist', 'index.html');
+
+const HEADERS_FILE = process.env.CHECK_SECURITY_HEADERS
+  ? path.resolve(process.env.CHECK_SECURITY_HEADERS)
+  : path.resolve(__dirname, '..', '_headers');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -196,7 +209,7 @@ function checkCSP(headersContent) {
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
-// (_assertSRIAttributes, _readArtefact — not exported, used by check functions and run())
+// (_assertSRIAttributes — internal; _readArtefact — exported for test use)
 
 /**
  * A sha384 hash encodes 48 bytes as standard base64 (no padding needed since
@@ -244,32 +257,55 @@ function _assertSRIAttributes(el, desc) {
 // ─── CLI runner ───────────────────────────────────────────────────────────────
 
 /**
- * Run all security checks against the project's build artefacts.
- * Reads dist/index.html and _headers from the filesystem.
- * Prints a pass/fail summary and exits with the appropriate code.
- */
-/**
- * Read a file from disk, exiting with code 1 if the file cannot be found.
+ * Read a file from disk, throwing an Error if the file cannot be read.
+ *
+ * Throwing (rather than calling process.exit) keeps this function usable as
+ * library code: callers in test harnesses or programmatic contexts get a
+ * catchable error instead of having the entire process terminated under them.
+ * The CLI entry point (see below) is the only site that translates an
+ * uncaught Error into a process.exit(1).
  *
  * @param {string} filePath - Absolute path to the file.
  * @returns {string} UTF-8 file contents.
+ * @throws {Error} If the file cannot be opened or read.
  */
 function _readArtefact(filePath) {
   try {
     return fs.readFileSync(filePath, 'utf8');
   } catch (err) {
-    console.error(`[check-security] Cannot read ${filePath}: ${err.message}`);
-    process.exit(1);
+    throw new Error(`[check-security] Cannot read ${filePath}: ${err.message}`);
   }
 }
 
+/**
+ * Run all security checks against the project's build artefacts.
+ * Reads dist/index.html and _headers from the filesystem.
+ * Prints a pass/fail summary to stdout/stderr.
+ *
+ * @returns {boolean} true if all checks passed, false otherwise.
+ *
+ * Callers are responsible for translating the return value into an exit code.
+ * This lets run() be called from test harnesses without risking a
+ * process.exit() killing the test runner.
+ */
 function run() {
   const errors = [];
   let passed = 0;
 
   // ── Load artefacts ─────────────────────────────────────────────────────────
-  const html          = _readArtefact(DIST_HTML);
-  const headersContent = _readArtefact(HEADERS_FILE);
+  let html, headersContent;
+  try {
+    html = _readArtefact(DIST_HTML);
+  } catch (err) {
+    console.error(err.message);
+    return false;
+  }
+  try {
+    headersContent = _readArtefact(HEADERS_FILE);
+  } catch (err) {
+    console.error(err.message);
+    return false;
+  }
 
   // ── Run checks ────────────────────────────────────────────────────────────
   const checks = [
@@ -295,11 +331,11 @@ function run() {
   const total = checks.length;
   if (errors.length === 0) {
     console.log(`\n[check-security] ${passed}/${total} checks passed`);
-    process.exit(0);
+    return true;
   } else {
     console.error(`\n[check-security] ${passed}/${total} checks passed, ${errors.length} failed:\n`);
     errors.forEach(({ name, message }) => console.error(`  ${name}: ${message}\n`));
-    process.exit(1);
+    return false;
   }
 }
 
@@ -313,6 +349,7 @@ module.exports = {
   checkCSP,
   REQUIRED_HEADERS,
   run,
+  _readArtefact,
 };
 
 if (require.main === module) {
@@ -339,5 +376,8 @@ if (require.main === module) {
     ].join('\n'));
     process.exit(0);
   }
-  run();
+  // run() returns true on success; translate to POSIX exit code here, keeping
+  // process.exit() out of library code so tests can call run() without risk of
+  // terminating the test runner.
+  process.exit(run() ? 0 : 1);
 }
