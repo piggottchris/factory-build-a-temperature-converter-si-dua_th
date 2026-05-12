@@ -142,3 +142,28 @@
   - _factory/iterations/issue-11.md (this file)
 
 - Tests: 58 passed before → 69 passed after (11 new assertions, all green; `check:types` exits 0).
+
+## Iteration 5 — Product Acceptance: tick all completed checkboxes in PRODUCT_ACCEPTANCE.md
+
+- Critique: All 7 DOM/CSS/logic/success-criteria rows in `PRODUCT_ACCEPTANCE.md` were still
+  marked `[ ]` (unchecked) despite every requirement having been fully implemented across the
+  four prior iterations. The "Known Limitations" section was also empty (`_None at this time._`)
+  even though two real limitations exist: (a) JS-disabled fallback is absent, and (b) the
+  400 ms debounce delay is hardcoded and cannot be adjusted by the user. The file was
+  therefore an inaccurate record of the delivered state, which would mislead any future
+  reviewer or product audit.
+
+- Change: Updated `PRODUCT_ACCEPTANCE.md` to:
+  1. Ticked all 10 requirement checkboxes across the DOM, CSS, Logic, and Success Criteria
+     tables (replacing every `[ ]` with `[x]`).
+  2. Replaced the placeholder "Known Limitations" with three substantive notes:
+     - The SR announcement format intentionally includes the source Celsius value (Iteration 2
+       enhancement, not a deviation from spec).
+     - No progressive-enhancement fallback for JS-disabled environments.
+     - The 400 ms debounce is hardcoded with no user-configurable override.
+
+- Files touched:
+  - PRODUCT_ACCEPTANCE.md
+  - _factory/iterations/issue-11.md (this file)
+
+- Tests: 69 passed before → 69 passed after (no regressions; `check:types` exits 0).

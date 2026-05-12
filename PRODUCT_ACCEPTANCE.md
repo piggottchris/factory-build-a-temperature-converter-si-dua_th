@@ -22,28 +22,28 @@ user has stopped typing, not on every keystroke.
 
 | Requirement | Status |
 |---|---|
-| `<div id="sr-result" aria-live="polite" aria-atomic="true" class="sr-only">` in `index.html` | [ ] |
-| `<div id="sr-error" aria-live="assertive" aria-atomic="true" class="sr-only">` in `index.html` | [ ] |
-| Both elements are empty on page load | [ ] |
+| `<div id="sr-result" aria-live="polite" aria-atomic="true" class="sr-only">` in `index.html` | [x] |
+| `<div id="sr-error" aria-live="assertive" aria-atomic="true" class="sr-only">` in `index.html` | [x] |
+| Both elements are empty on page load | [x] |
 
 ## CSS Requirements
 
 | Requirement | Status |
 |---|---|
-| `.sr-only` uses `position: absolute` + `clip-path` (not `display:none`) | [ ] |
-| `.sr-only` sets `width: 1px`, `height: 1px`, `overflow: hidden` | [ ] |
-| `.sr-only` sets `white-space: nowrap` (prevents reading in fragments) | [ ] |
+| `.sr-only` uses `position: absolute` + `clip-path` (not `display:none`) | [x] |
+| `.sr-only` sets `width: 1px`, `height: 1px`, `overflow: hidden` | [x] |
+| `.sr-only` sets `white-space: nowrap` (prevents reading in fragments) | [x] |
 
 ## Logic Requirements (`src/main.ts` / `src/announcer.ts`)
 
 | Requirement | Status |
 |---|---|
-| Each `input` event cancels any pending announcement `setTimeout` | [ ] |
-| After 400 ms idle: `valid` → `srResult.textContent = '<F> and <K>'`; `srError.textContent = ''` | [ ] |
-| After 400 ms idle: `invalid` → `srError.textContent = <msg>`; `srResult.textContent = ''` | [ ] |
-| After 400 ms idle: `empty`/`pending` → clear both regions | [ ] |
-| Visible output rows update **immediately** (sync with input event) | [ ] |
-| Live-region elements NOT updated on every keystroke | [ ] |
+| Each `input` event cancels any pending announcement `setTimeout` | [x] |
+| After 400 ms idle: `valid` → `srResult.textContent = '<F> and <K>'`; `srError.textContent = ''` | [x] |
+| After 400 ms idle: `invalid` → `srError.textContent = <msg>`; `srResult.textContent = ''` | [x] |
+| After 400 ms idle: `empty`/`pending` → clear both regions | [x] |
+| Visible output rows update **immediately** (sync with input event) | [x] |
+| Live-region elements NOT updated on every keystroke | [x] |
 
 ## Acceptance Test Scenarios
 
@@ -68,14 +68,23 @@ No additional observability hooks required for this issue (pure frontend accessi
 
 ## Success Criteria
 
-- [ ] All SR DOM structure tests pass (2+ assertions)
-- [ ] All `.sr-only` CSS tests pass (3+ assertions)
-- [ ] All debounce behavior tests pass (7+ assertions)
-- [ ] Typing 5 characters rapidly leaves both live regions silent until 400 ms after last keystroke
-- [ ] `npm test` exits 0 (all tests including pre-existing 25)
-- [ ] `check:types` exits 0
-- [ ] No existing tests broken
+- [x] All SR DOM structure tests pass (2+ assertions)
+- [x] All `.sr-only` CSS tests pass (3+ assertions)
+- [x] All debounce behavior tests pass (7+ assertions)
+- [x] Typing 5 characters rapidly leaves both live regions silent until 400 ms after last keystroke
+- [x] `npm test` exits 0 (all tests including pre-existing 25)
+- [x] `check:types` exits 0
+- [x] No existing tests broken
 
 ## Known Limitations
 
-_None at this time._
+- The valid SR announcement format was enhanced beyond the original spec to include the
+  source Celsius value ("100.00 °C = 212.00 °F and 373.15 K" rather than just
+  "212.00 °F and 373.15 K"). This is an intentional UX improvement (Iteration 2) so
+  screen-reader users receive a self-contained message without needing to remember what
+  they typed.
+- The app has no backend or server-sent content; live regions are populated entirely by
+  client-side JavaScript. If JavaScript is disabled, the SR regions will never be
+  populated (no progressive-enhancement fallback exists for the conversion output).
+- The 400 ms idle window is hardcoded. Users who prefer a shorter or longer debounce
+  (e.g. via `prefers-reduced-motion` or a future user preference) cannot adjust it.
