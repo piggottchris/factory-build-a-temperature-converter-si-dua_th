@@ -80,6 +80,86 @@ describe("vercel.json — structure", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Edge-case / robustness tests
+// ---------------------------------------------------------------------------
+describe("vercel.json — edge cases", () => {
+  it("catch-all rule source is exactly '/(.*)', not a looser pattern", () => {
+    // The spec mandates '/(.*)'  specifically. Vercel interprets '/(.*)'  as
+    // a regex that matches every path including '/'. Using '/**' or '/' alone
+    // would miss some paths. This test pins the exact pattern required.
+    const exactCatchAll = (config.headers ?? []).find(
+      (r) => r.source === "/(.*)",
+    );
+    expect(
+      exactCatchAll,
+      "vercel.json catch-all rule must use source '/(.*)'  exactly " +
+        "(not '/**' or '/' alone) — '/(.*)'  is the form specified in the product contract",
+    ).toBeDefined();
+  });
+
+  it("no header key appears more than once within the same rule", () => {
+    // Duplicate keys inside a single rule are silently lost because the
+    // flattening Map keeps only the last occurrence. A duplicate would make
+    // the earlier header completely invisible to the value-assertion tests.
+    for (const rule of config.headers ?? []) {
+      const seen = new Set<string>();
+      const duplicates: string[] = [];
+      for (const h of rule.headers) {
+        if (seen.has(h.key)) {
+          duplicates.push(h.key);
+        }
+        seen.add(h.key);
+      }
+      expect(
+        duplicates,
+        `Rule with source '${rule.source}' has duplicate header keys: ${duplicates.join(", ")}. ` +
+          "Duplicate keys cause earlier entries to be silently ignored by the Map flattener in tests and by some CDNs.",
+      ).toEqual([]);
+    }
+  });
+
+  it("catch-all rule has exactly 8 header entries — no accidental additions or deletions", () => {
+    // Pin the expected count so that adding a 9th header (or accidentally
+    // removing one) is immediately visible rather than silent.
+    const catchAll = (config.headers ?? []).find(
+      (r) => r.source === "/(.*)" || r.source === "/**",
+    );
+    expect(catchAll).toBeDefined();
+    expect(
+      catchAll!.headers.length,
+      `Expected exactly 8 security headers in the catch-all rule, ` +
+        `but found ${catchAll!.headers.length}. ` +
+        "Update this test intentionally when adding or removing a header.",
+    ).toBe(8);
+  });
+
+  it("all required header keys use canonical HTTP Title-Case, not lowercase", () => {
+    // HTTP/1.1 header names are case-insensitive on the wire, but vercel.json
+    // key values are sent verbatim. Some downstream tooling (log parsers,
+    // security scanners) is case-sensitive. Pinning canonical casing prevents
+    // silent drift (e.g. 'content-security-policy' instead of
+    // 'Content-Security-Policy').
+    const CANONICAL_KEYS = Object.keys(REQUIRED_HEADERS);
+    for (const canonical of CANONICAL_KEYS) {
+      const lowered = canonical.toLowerCase();
+      // The header must be present under its canonical casing
+      expect(
+        allHeaders.has(canonical),
+        `'${canonical}' is missing or misspelled in vercel.json (checked canonical case)`,
+      ).toBe(true);
+      // If a lowercased variant is also present AND differs from canonical,
+      // that is a second entry with wrong casing — flag it.
+      if (lowered !== canonical && allHeaders.has(lowered)) {
+        throw new Error(
+          `Header '${lowered}' found in vercel.json with wrong casing — ` +
+            `use '${canonical}' instead.`,
+        );
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Per-header value tests
 // ---------------------------------------------------------------------------
 describe("vercel.json — Content-Security-Policy", () => {

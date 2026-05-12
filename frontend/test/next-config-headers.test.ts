@@ -78,6 +78,40 @@ describe("next.config.mjs — headers() structure", () => {
       "next.config.mjs headers() must contain a catch-all rule ('/(.*)'  or '/**') so all paths receive security headers",
     ).toBeDefined();
   });
+
+  it("catch-all rule source is exactly '/(.*)', matching vercel.json", async () => {
+    // Keeps next.config.mjs and vercel.json source patterns in sync. A drift
+    // (e.g. '/**' in one but '/(.*)'  in the other) would not be caught by the
+    // value-sync test and would cause subtle parity differences.
+    const configPath = resolve(__dirname, "../next.config.mjs");
+    const mod = await import(pathToFileURL(configPath).href);
+    const rules: NextHeaderRule[] = await mod.default.headers();
+    const exactCatchAll = rules.find((r) => r.source === "/(.*)");
+    expect(
+      exactCatchAll,
+      "next.config.mjs headers() catch-all rule must use source '/(.*)'  to match vercel.json exactly",
+    ).toBeDefined();
+  });
+
+  it("no header key appears more than once in the catch-all rule", async () => {
+    // Duplicates are silently dropped by the Map flattener; a duplicate would
+    // make the first occurrence invisible to value-assertion tests.
+    const configPath = resolve(__dirname, "../next.config.mjs");
+    const mod = await import(pathToFileURL(configPath).href);
+    const rules: NextHeaderRule[] = await mod.default.headers();
+    for (const rule of rules) {
+      const seen = new Set<string>();
+      const duplicates: string[] = [];
+      for (const h of rule.headers) {
+        if (seen.has(h.key)) duplicates.push(h.key);
+        seen.add(h.key);
+      }
+      expect(
+        duplicates,
+        `next.config.mjs rule '${rule.source}' has duplicate header keys: ${duplicates.join(", ")}`,
+      ).toEqual([]);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

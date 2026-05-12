@@ -53,3 +53,20 @@
   - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file)
 
 - Tests: before: 81 frontend / 2 backend passing, 0 failing. After: 84 frontend / 2 backend passing, 0 failing.
+
+## Iteration 4 — Test and Evaluation Coverage: add edge-case tests for source pattern, duplicate keys, header count, and key casing
+
+- Critique: Four coverage gaps were present after Pass 3:
+  1. The `structure` describe block in both test files accepted `/**` as equivalent to `/(.*)`  when checking for a catch-all rule. The product contract mandates exactly `/(.*)`  and the two patterns have subtly different semantics in path-to-regexp. A config change to `/**` would pass the existing structural test even though it diverges from the spec.
+  2. No test caught **duplicate header keys** within a single rule. The test harness flattens headers into a `Map`, which silently overwrites the first occurrence of a duplicate key, making it invisible to all subsequent value-assertion tests. A duplicate could exist in `vercel.json` without any test failing.
+  3. No test pinned the **exact header count** (8). Adding or accidentally deleting a header would not be caught by the per-header value tests unless someone also deleted the corresponding per-header test case.
+  4. No test verified **canonical HTTP Title-Case** for header key names. HTTP header names are case-insensitive on the wire but vercel.json keys are sent verbatim. A typo like `content-security-policy` instead of `Content-Security-Policy` would cause every existing "is present" test to *fail* (Map lookup is case-sensitive), but the failure message would be "header is missing" not "header is miscased" — obscuring the root cause. The new casing test explicitly checks that no required header exists only under a wrong-cased key.
+
+- Change: Added a `"vercel.json — edge cases"` describe block to `frontend/test/vercel-headers.test.ts` with 4 new tests (exact source pattern, no duplicate keys, exact header count = 8, canonical Title-Case keys). Added 2 new tests to the `"next.config.mjs — headers() structure"` describe block in `frontend/test/next-config-headers.test.ts` (exact source pattern, no duplicate keys). No existing tests were modified or removed.
+
+- Files touched:
+  - `/sandbox/work/issue-16/frontend/test/vercel-headers.test.ts`
+  - `/sandbox/work/issue-16/frontend/test/next-config-headers.test.ts`
+  - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file)
+
+- Tests: before: 84 frontend / 2 backend passing, 0 failing. After: 90 frontend / 2 backend passing, 0 failing.
