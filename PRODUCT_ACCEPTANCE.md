@@ -1,75 +1,81 @@
-# Product Acceptance Contract — Temperature Converter (Issue #4)
+# Product Acceptance Contract — Issue #11
+# Accessibility: Debounced Screen-Reader Live Regions (400 ms idle window)
 
 ## Product Archetype
 
-Zero-dependency static temperature converter: single-screen card UI, Celsius input → live
-Fahrenheit and Kelvin output. No server, no tracking, no accounts. Runs entirely in the browser.
+Accessibility enhancement for the temperature-converter single-page app. Adds debounced
+ARIA live-region announcements so screen-reader users hear converted values only when the
+user has stopped typing, not on every keystroke.
 
-## Scope of Issue #4
+## Primary User Journey
 
-This issue delivers the **static card structure and base visual styles** only
-(`src/index.html` + `src/styles.css`). No JavaScript logic is wired — outputs show `—`.
+1. User opens the temperature converter in a browser.
+2. User types a Celsius value (e.g. "1", "10", "100" — three keystrokes).
+3. While typing, the visible output rows update **immediately** after each keystroke.
+4. The two SR-only live regions (`#sr-result`, `#sr-error`) remain **silent** during rapid typing.
+5. After 400 ms of no further input, the screen reader announces either:
+   - The Fahrenheit and Kelvin values (valid input), or
+   - The error message (invalid input), or
+   - Nothing (empty or pending input, both regions cleared).
 
-## Primary User Journey (this issue)
-
-1. User opens the app in a browser (`pnpm dev`).
-2. A centred card is visible on a light-grey page.
-3. The card shows:
-   - Heading "Temperature Converter"
-   - Labelled text input (Celsius °C)
-   - Helper text explaining decimal/negative entry
-   - Two output rows: Fahrenheit (°F) — and Kelvin (K) —
-4. No JavaScript is required for the static structure to render correctly.
-
-## UI Requirements
+## DOM Requirements
 
 | Requirement | Status |
 |---|---|
-| `<title>Temperature Converter</title>` | ✅ Complete |
-| Meta description (privacy-safe copy) | ✅ Complete |
-| `<meta name="theme-color" content="#f5f5f7">` | ✅ Complete |
-| External CSS `<link>` only — no inline `<style>` | ✅ Complete |
-| External `<script type="module">` only — no inline script | ✅ Complete |
-| `<label for="celsius-input">Celsius (°C)</label>` | ✅ Complete |
-| `<input id="celsius-input">` with `inputmode`, `autocomplete`, `maxlength`, `enterkeyhint`, `placeholder`, `aria-describedby` | ✅ Complete |
-| Helper text "Decimals and negatives OK. Use '.' as the decimal point." | ✅ Complete |
-| Hidden error slot (in DOM, `hidden` attribute) | ✅ Complete |
-| Empty-hint element "Enter a temperature in Celsius" | ✅ Complete |
-| Fahrenheit output row with `—` | ✅ Complete |
-| Kelvin output row with `—` | ✅ Complete |
+| `<div id="sr-result" aria-live="polite" aria-atomic="true" class="sr-only">` in `index.html` | [ ] |
+| `<div id="sr-error" aria-live="assertive" aria-atomic="true" class="sr-only">` in `index.html` | [ ] |
+| Both elements are empty on page load | [ ] |
 
 ## CSS Requirements
 
 | Requirement | Status |
 |---|---|
-| Page background `#f5f5f7` | ✅ Complete |
-| Card background `#ffffff` | ✅ Complete |
-| Card max-width `420px`, padding `24px`, border-radius `12px`, soft `box-shadow` | ✅ Complete |
-| Font stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` | ✅ Complete |
-| Input: `font-size ≥ 16px`, `padding-block ≥ 14px`, `min-height: 48px` | ✅ Complete |
-| No external image URLs | ✅ Complete |
+| `.sr-only` uses `position: absolute` + `clip-path` (not `display:none`) | [ ] |
+| `.sr-only` sets `width: 1px`, `height: 1px`, `overflow: hidden` | [ ] |
+| `.sr-only` sets `white-space: nowrap` (prevents reading in fragments) | [ ] |
+
+## Logic Requirements (`src/main.ts` / `src/announcer.ts`)
+
+| Requirement | Status |
+|---|---|
+| Each `input` event cancels any pending announcement `setTimeout` | [ ] |
+| After 400 ms idle: `valid` → `srResult.textContent = '<F> and <K>'`; `srError.textContent = ''` | [ ] |
+| After 400 ms idle: `invalid` → `srError.textContent = <msg>`; `srResult.textContent = ''` | [ ] |
+| After 400 ms idle: `empty`/`pending` → clear both regions | [ ] |
+| Visible output rows update **immediately** (sync with input event) | [ ] |
+| Live-region elements NOT updated on every keystroke | [ ] |
+
+## Acceptance Test Scenarios
+
+| Scenario | Expected |
+|---|---|
+| Typing 5 characters at 50 ms intervals | Both SR regions still empty at 250 ms |
+| 400 ms after last keystroke with valid input | `#sr-result` has F+K text; `#sr-error` empty |
+| 400 ms after last keystroke with invalid format | `#sr-error` has error text; `#sr-result` empty |
+| 400 ms after last keystroke with empty input | Both regions empty |
+| 400 ms after last keystroke with pending input (e.g. "-") | Both regions empty |
+| Second keystroke at 200 ms resets timer; result fires at 600 ms, not 400 ms | Only second content announced |
+| `cancel()` called before timeout | No announcement fires |
 
 ## Security Posture
 
-- **Demo / offline mode**: static HTML/CSS only — no network calls, no auth, no data collection.
-- No inline scripts or styles (Content-Security-Policy-friendly from day one).
-- No third-party fonts or image CDNs.
+Demo/offline mode. No authentication required. SR live regions only expose computed
+conversion results — no user input is echoed back verbatim.
 
 ## Observability
 
-- Not applicable to a static card structure. Observability hooks will be added when JS logic
-  is wired (issues #6+).
+No additional observability hooks required for this issue (pure frontend accessibility fix).
 
 ## Success Criteria
 
-- [x] `pnpm dev` renders the card with all static labels and `—` output rows.
-- [x] All HTML structure tests pass (`pnpm test`).
-- [x] No inline `<style>` or inline `<script>` present.
-- [x] Card visible and readable on 320 px viewport without horizontal scroll (base layout).
+- [ ] All SR DOM structure tests pass (2+ assertions)
+- [ ] All `.sr-only` CSS tests pass (3+ assertions)
+- [ ] All debounce behavior tests pass (7+ assertions)
+- [ ] Typing 5 characters rapidly leaves both live regions silent until 400 ms after last keystroke
+- [ ] `npm test` exits 0 (all tests including pre-existing 25)
+- [ ] `check:types` exits 0
+- [ ] No existing tests broken
 
 ## Known Limitations
 
-- Responsive breakpoints for `< 480 px` viewports are deferred to issue #5.
-- `±` toggle button (mobile negative entry) is deferred to issue #8.
-- ARIA live-region wiring is deferred to issues #10–#11.
-- Accessibility audit (`pnpm test:a11y`) is deferred to issue #13.
+_None at this time._
