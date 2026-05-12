@@ -48,7 +48,7 @@ between Celsius, Fahrenheit, and Kelvin — both via direct tool calls and via n
 - [x] Kelvin cannot go below 0 K (absolute zero guard).
 
 ### Observability
-- [ ] Datadog dd_init integration preserved (no-ops without DD_API_KEY).
+- [x] Datadog dd_init integration preserved (no-ops without DD_API_KEY).
 
 ### Tests
 - [ ] Backend: conversion correctness (all 6 unit pairs) — pytest green.

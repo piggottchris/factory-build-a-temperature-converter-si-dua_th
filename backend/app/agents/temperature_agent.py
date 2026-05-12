@@ -4,7 +4,12 @@ MAF agent for temperature unit conversion.
 Supports: Celsius, Fahrenheit, Kelvin.
 """
 
+import logging
+import math
+
 from agent_framework import Agent, tool
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -59,8 +64,6 @@ def convert_temperature(value: float, from_unit: str, to_unit: str) -> float:
     ValueError
         If either unit is unsupported or the input value is below absolute zero.
     """
-    import math as _math
-
     from_unit = from_unit.lower().strip()
     to_unit = to_unit.lower().strip()
 
@@ -70,9 +73,9 @@ def convert_temperature(value: float, from_unit: str, to_unit: str) -> float:
         raise ValueError(f"Unsupported unit: '{to_unit}'. Supported: {sorted(SUPPORTED_UNITS)}")
 
     # Reject IEEE 754 special values — NaN and Infinity are not physical temperatures
-    if _math.isnan(value):
+    if math.isnan(value):
         raise ValueError("Temperature value must be a finite number, got NaN.")
-    if _math.isinf(value):
+    if math.isinf(value):
         raise ValueError("Temperature value must be a finite number, got Infinity.")
 
     # Absolute-zero guard
@@ -123,12 +126,24 @@ def convert_temperature_tool(value: float, from_unit: str, to_unit: str) -> str:
     """MAF-registered tool wrapper for convert_temperature."""
     try:
         result = convert_temperature(value, from_unit, to_unit)
+        logger.debug(
+            "convert_temperature: %.6g %s -> %.6g %s",
+            value, from_unit, result, to_unit,
+        )
         return (
             f"{value} {from_unit.capitalize()} = {result:.4f} {to_unit.capitalize()} "
             f"(rounded: {result:.2f})"
         )
     except ValueError as exc:
+        logger.warning("convert_temperature validation error: %s", exc)
         return f"Error: {exc}"
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            "convert_temperature unexpected error: value=%r from_unit=%r to_unit=%r — %s",
+            value, from_unit, to_unit, exc,
+            exc_info=True,
+        )
+        return f"Error: unexpected server error during conversion."
 
 
 @tool(description="List the temperature units supported by this converter.")

@@ -45,4 +45,5 @@ async def healthz():
     return {
         "ok": True,
         "agents": [haiku_agent.name, temperature_agent.name],
+        "model": os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5"),
     }

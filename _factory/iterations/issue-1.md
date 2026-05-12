@@ -25,3 +25,17 @@
   - frontend/test/temperature.test.ts
 
 - Tests: backend 35 passed (no change); frontend 26 passed → 33 passed (7 added). No regressions.
+
+## Iteration 3 — Backend Reliability: structured logging and broad exception handling in temperature tool
+
+- Critique: `convert_temperature_tool` had two reliability problems. First, it only caught `ValueError` — any other exception (e.g., a `TypeError` if the LLM passes a non-numeric value that slips past Pydantic coercion, or any future refactor that introduces a new exception type) would propagate uncaught through the MAF tool invocation layer, potentially crashing the SSE stream for the entire agent request. Second, neither the `ValueError` path nor the success path emitted any log output, making conversion activity completely invisible without Datadog (whose `DD_API_KEY` is not present in dev or CI). In production, diagnosing why an agent replied with "Error: Unsupported unit" would require either tracing or LLM output inspection — no server-side record exists. Additionally, `import math` was deferred inside `convert_temperature` on every call (a minor but unnecessary repeated import). Finally, `healthz` returned no model name, so the Observability acceptance criterion (structured endpoint data) was unmet.
+
+- Change: (1) Moved `import math` and added `import logging` / `logger = logging.getLogger(__name__)` at module level in `temperature_agent.py`. (2) Updated `convert_temperature_tool` to: log successful conversions at DEBUG, log `ValueError` at WARNING, and add a broad `except Exception` clause that logs at ERROR with `exc_info=True` (full traceback) before returning a safe user-facing error string — keeping the agent request alive while making the failure observable. (3) Added `"model"` field to the `healthz` response in `main.py` using `os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")`. (4) Added 7 new pytest cases: `TestConvertTemperatureTool` class covering success formatting, invalid-unit error string, absolute-zero error string, NaN error string, unexpected-exception logging (using `caplog` + `unittest.mock.patch`), and validation-error WARNING logging. Added `test_healthz_includes_model` to `TestFastAPISmoke`.
+
+- Files touched:
+  - backend/app/agents/temperature_agent.py
+  - backend/app/main.py
+  - backend/app/tests/test_temperature_agent.py
+  - PRODUCT_ACCEPTANCE.md (ticked Observability checkbox)
+
+- Tests: backend 35 passed → 42 passed (7 added); frontend 33 passed (no change). No regressions.

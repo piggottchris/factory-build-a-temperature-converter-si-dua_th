@@ -178,6 +178,59 @@ class TestBuildTemperatureAgent:
         assert len(tools) >= 2
 
 
+class TestConvertTemperatureTool:
+    """Tests for the MAF tool wrapper (convert_temperature_tool)."""
+
+    def setup_method(self):
+        from app.agents.temperature_agent import convert_temperature_tool
+        self.tool = convert_temperature_tool
+
+    def test_success_returns_formatted_string(self):
+        result = self.tool(100, "celsius", "fahrenheit")
+        assert "212" in result
+        assert "Celsius" in result
+        assert "Fahrenheit" in result
+
+    def test_invalid_unit_returns_error_string(self):
+        result = self.tool(100, "rankine", "celsius")
+        assert result.startswith("Error:")
+        assert "rankine" in result.lower() or "unsupported" in result.lower()
+
+    def test_below_absolute_zero_returns_error_string(self):
+        result = self.tool(-1, "kelvin", "celsius")
+        assert result.startswith("Error:")
+
+    def test_nan_returns_error_string(self):
+        result = self.tool(float("nan"), "celsius", "kelvin")
+        assert result.startswith("Error:")
+
+    def test_unexpected_exception_is_caught_and_logged(self, caplog):
+        """A non-ValueError exception must be logged at ERROR and return a safe error string."""
+        import logging
+        from unittest.mock import patch
+        from app.agents.temperature_agent import convert_temperature_tool
+
+        with patch(
+            "app.agents.temperature_agent.convert_temperature",
+            side_effect=RuntimeError("simulated unexpected error"),
+        ):
+            with caplog.at_level(logging.ERROR, logger="app.agents.temperature_agent"):
+                result = convert_temperature_tool(100, "celsius", "fahrenheit")
+
+        assert result.startswith("Error:")
+        assert "unexpected server error" in result
+        assert any("unexpected" in r.message.lower() for r in caplog.records)
+
+    def test_validation_error_is_logged_as_warning(self, caplog):
+        """ValueError from convert_temperature must be logged at WARNING."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="app.agents.temperature_agent"):
+            self.tool(100, "rankine", "celsius")
+
+        assert any(r.levelno == logging.WARNING for r in caplog.records)
+
+
 class TestFastAPISmoke:
     """Smoke tests for the FastAPI app with temperature agent mounted."""
 
@@ -195,6 +248,14 @@ class TestFastAPISmoke:
         assert body["ok"] is True
         # Should list agents (may be "agent" string for haiku or "agents" list for temperature)
         assert "agents" in body or "agent" in body
+
+    def test_healthz_includes_model(self, app):
+        r = app.get("/healthz")
+        assert r.status_code == 200
+        body = r.json()
+        assert "model" in body
+        assert isinstance(body["model"], str)
+        assert len(body["model"]) > 0
 
     def test_temperature_agent_route_is_mounted(self, app):
         r = app.get("/openapi.json")
