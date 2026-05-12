@@ -237,3 +237,32 @@ describe('output rows', () => {
     expect(kelvin!.classList.contains('results__value--empty')).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// SR live-region element structural regression guards
+// ---------------------------------------------------------------------------
+describe('SR live-region element structure regression guards', () => {
+  it('#sr-result is a <div> element (not <p>, <span>, or other)', () => {
+    const el = document.getElementById('sr-result')
+    expect(el).not.toBeNull()
+    expect(el!.tagName.toLowerCase()).toBe('div')
+  })
+
+  it('#sr-error is a <div> element (not <p>, <span>, or other)', () => {
+    const el = document.getElementById('sr-error')
+    expect(el).not.toBeNull()
+    expect(el!.tagName.toLowerCase()).toBe('div')
+  })
+
+  it('#sr-result does not have a hidden attribute (hidden silences live regions in AT)', () => {
+    const el = document.getElementById('sr-result')
+    expect(el).not.toBeNull()
+    expect(el!.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('#sr-error does not have a hidden attribute (hidden silences live regions in AT)', () => {
+    const el = document.getElementById('sr-error')
+    expect(el).not.toBeNull()
+    expect(el!.hasAttribute('hidden')).toBe(false)
+  })
+})

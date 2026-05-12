@@ -79,3 +79,66 @@
   - tests/a11y.test.ts
 
 - Tests: 58 passed before → 58 passed after (no regressions; `check:types` now exits 0).
+
+## Iteration 4 — Test and Evaluation Coverage: announcer boundary cases + HTML structural regression guards
+
+- Critique: The existing 58 tests had several real coverage gaps:
+
+  1. `createAnnouncer()` (no-arg, default 400 ms) was never called without an explicit
+     argument — only `createAnnouncer(400)` was used. If the default parameter were
+     accidentally removed, no test would fail.
+
+  2. `delayMs = 0` was untested. The implementation uses `setTimeout(..., 0)` which is
+     still async (fires on next tick, not inline). Without a test the boundary between
+     synchronous and deferred behaviour was undocumented and unguarded.
+
+  3. `cancel()` called when `timerId` is null (no pending timer) was untested. The guard
+     `if (timerId !== null)` made it a no-op, but there was no regression test — a future
+     refactor that removed the null-guard would silently throw `clearTimeout(null)` in
+     some runtimes.
+
+  4. `cancel()` called twice in a row (double-cancel) was untested for the same reason.
+
+  5. Multiple `schedule()` calls at zero time interval (no `advanceTimersByTime` between
+     them) were untested. The existing "5 rapid keystrokes" test advanced by 50 ms
+     between each call; a purely synchronous multi-call scenario was not covered.
+
+  6. `schedule()` after `cancel()` (restart after explicit teardown) was untested.
+
+  7. The CSS test checked only for presence of `clip-path` in `.sr-only`, not the
+     specific value `inset(50%)`. Any other value (e.g. `rect(0 0 0 0)`) would pass the
+     existing test but deliver incorrect clipping behaviour for AT.
+
+  8. No test guarded the element tag-name of `#sr-result` / `#sr-error`. A refactor
+     changing them from `<div>` to `<p>` or `<span>` could subtly affect how some screen
+     readers handle the live region (especially `<p>` which implies paragraph semantics).
+
+  9. No test asserted that `#sr-result` / `#sr-error` lack a `hidden` attribute. Adding
+     `hidden` to a live region silences it in all major AT — an easy accidental regression.
+
+- Change: Added 11 new test assertions across two files:
+
+  In `tests/a11y.test.ts`:
+  - New `.sr-only clip-path value is exactly inset(50%)` assertion inside the existing
+    `.sr-only in src/styles.css` describe block (1 test).
+  - New `createAnnouncer — boundary and edge cases` describe block (6 tests):
+    - `createAnnouncer()` with no argument uses 400 ms default
+    - `createAnnouncer(0)` fires on the next tick (via `advanceTimersByTime(0)`)
+    - `cancel()` with no pending timer does not throw
+    - `cancel()` after a prior `cancel()` does not throw
+    - Multiple `schedule()` calls at the same instant only fires the last one
+    - `schedule()` after `cancel()` restarts the timer correctly
+
+  In `tests/html-structure.test.ts`:
+  - New `SR live-region element structure regression guards` describe block (4 tests):
+    - `#sr-result` is a `<div>` element
+    - `#sr-error` is a `<div>` element
+    - `#sr-result` does not have a `hidden` attribute
+    - `#sr-error` does not have a `hidden` attribute
+
+- Files touched:
+  - tests/a11y.test.ts
+  - tests/html-structure.test.ts
+  - _factory/iterations/issue-11.md (this file)
+
+- Tests: 58 passed before → 69 passed after (11 new assertions, all green; `check:types` exits 0).

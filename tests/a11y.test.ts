@@ -115,6 +115,12 @@ describe('.sr-only in src/styles.css', () => {
     expect(blockMatch![1]).toMatch(/clip-path/)
   })
 
+  it('.sr-only clip-path value is exactly inset(50%)', () => {
+    const blockMatch = css.match(/\.sr-only\s*\{([^}]*)\}/)
+    expect(blockMatch).not.toBeNull()
+    expect(blockMatch![1]).toMatch(/clip-path\s*:\s*inset\(50%\)/)
+  })
+
   it('.sr-only sets width to 1px', () => {
     const blockMatch = css.match(/\.sr-only\s*\{([^}]*)\}/)
     expect(blockMatch).not.toBeNull()
@@ -265,6 +271,96 @@ describe('createAnnouncer — debounced SR updates', () => {
     vi.advanceTimersByTime(1000)
 
     expect(srResult.textContent).toBe('')
+    expect(srError.textContent).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// createAnnouncer — boundary cases and edge branches
+// ---------------------------------------------------------------------------
+
+describe('createAnnouncer — boundary and edge cases', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function makeEls() {
+    const srResult = { textContent: '' } as unknown as HTMLElement
+    const srError = { textContent: '' } as unknown as HTMLElement
+    return { srResult, srError }
+  }
+
+  it('createAnnouncer() with no argument uses 400 ms default delay', () => {
+    const { srResult, srError } = makeEls()
+    const ann = createAnnouncer() // no explicit delayMs
+
+    ann.schedule(srResult, srError, 'valid', 'default delay test')
+
+    // 399 ms — must NOT have fired yet
+    vi.advanceTimersByTime(399)
+    expect(srResult.textContent).toBe('')
+
+    // 1 more ms — now at exactly 400 ms, must fire
+    vi.advanceTimersByTime(1)
+    expect(srResult.textContent).toBe('default delay test')
+  })
+
+  it('createAnnouncer(0) fires on the next timer tick (advanceTimersByTime(0))', () => {
+    const { srResult, srError } = makeEls()
+    const ann = createAnnouncer(0)
+
+    ann.schedule(srResult, srError, 'valid', 'zero delay')
+
+    // Has not fired yet — setTimeout(..., 0) is still async
+    expect(srResult.textContent).toBe('')
+
+    // Advancing by 0 ms flushes any 0-delay timers
+    vi.advanceTimersByTime(0)
+    expect(srResult.textContent).toBe('zero delay')
+  })
+
+  it('cancel() is a no-op when no timer is pending (does not throw)', () => {
+    const ann = createAnnouncer(400)
+    // No schedule() call has been made — timerId is null
+    expect(() => ann.cancel()).not.toThrow()
+  })
+
+  it('cancel() after a prior cancel() is also a no-op (does not throw)', () => {
+    const { srResult, srError } = makeEls()
+    const ann = createAnnouncer(400)
+
+    ann.schedule(srResult, srError, 'valid', 'test')
+    ann.cancel() // first cancel — clears the timer
+    expect(() => ann.cancel()).not.toThrow() // second cancel — timerId already null
+  })
+
+  it('multiple schedule() calls at the same instant only fires the last one', () => {
+    const { srResult, srError } = makeEls()
+    const ann = createAnnouncer(400)
+
+    // Three calls with no time elapsed between them
+    ann.schedule(srResult, srError, 'invalid', 'first')
+    ann.schedule(srResult, srError, 'invalid', 'second')
+    ann.schedule(srResult, srError, 'valid', 'third')
+
+    vi.advanceTimersByTime(400)
+
+    // Only the third call's state wins
+    expect(srResult.textContent).toBe('third')
+    expect(srError.textContent).toBe('')
+  })
+
+  it('schedule() after cancel() works correctly (restarts the timer)', () => {
+    const { srResult, srError } = makeEls()
+    const ann = createAnnouncer(400)
+
+    ann.schedule(srResult, srError, 'valid', 'before cancel')
+    ann.cancel()
+
+    // A new schedule() after cancel() should work normally
+    ann.schedule(srResult, srError, 'valid', 'after cancel')
+    vi.advanceTimersByTime(400)
+
+    expect(srResult.textContent).toBe('after cancel')
     expect(srError.textContent).toBe('')
   })
 })
