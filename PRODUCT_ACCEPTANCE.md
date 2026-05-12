@@ -1,94 +1,75 @@
-# Product Acceptance Contract — Issue #12
+# Product Acceptance Contract — Issue #18
 
 ## Feature
-`tests/dom.test.ts`: jsdom DOM state-transition tests for the temperature-converter UI (`lib/main.ts`).
+`scripts/check-security.js`: static CI validation script for CSP header config, SRI attributes, and inline-script/style absence.
 
 ## Product Archetype
-Developer tooling / DOM integration test layer for the temperature-converter POC. These tests verify that the vanilla-TS DOM controller (`lib/main.ts`) correctly drives the page's HTML elements through every user-visible state.
+Developer tooling / CI security gate for the temperature-converter POC. The script validates that the deployed HTML artifact and server-response headers satisfy a minimal Content Security Policy baseline, blocking inline code execution and requiring Subresource Integrity on all external assets.
 
 ## Primary User Journey
-A developer runs `npm test` from `frontend/` and sees a green suite (covering both `convert.test.ts` and `dom.test.ts`) that confirms the UI controller handles:
-- Initial/empty state (hint visible, outputs `—`, no error)
-- Valid Celsius input (correct Fahrenheit/Kelvin outputs, no error)
-- Invalid format input (error visible with exact message, outputs `—`)
-- Out-of-range input (range error visible, outputs `—`)
-- Valid → invalid transition (context "was:" line visible with last result)
-- Clearing after error (error hidden, hint restored, context hidden)
-- Pending inputs (no error flashed, outputs frozen)
-- ± sign-toggle button (toggles sign, re-renders outputs)
+A developer (or CI pipeline) runs `npm run check:security` from `frontend/` and sees an exit-0 green pass confirming:
+- No inline `<style>` tags in the deployed HTML
+- No inline `<script>` content in the deployed HTML
+- Every external script/stylesheet in `dist/index.html` carries an `integrity="sha384-..."` attribute and `crossorigin="anonymous"`
+- All five required security response headers are declared in the deploy config (`_headers`)
+- The CSP value contains `script-src 'self'` and does **not** contain `unsafe-inline`
 
-## HTML Element Contract
+Injecting `<script>alert(1)</script>` into `dist/index.html` must cause the script to exit 1 with a descriptive failure message.
 
-| Element ID | Role |
-|------------|------|
-| `#celsius-input` | Text input — user enters a Celsius value |
-| `#sign-toggle` | Button — toggles the ± sign on the current input |
-| `#empty-hint` | Paragraph — visible only in EMPTY state |
-| `#helper-text` | Paragraph — always visible; instructional copy |
-| `#error-slot` | Paragraph — visible only when parse returns INVALID |
-| `#fahrenheit-output` | Paragraph — Fahrenheit result or `—` |
-| `#kelvin-output` | Paragraph — Kelvin result or `—` |
-| `#context-line` | Paragraph — visible only when INVALID + previous valid exists |
+## HTML Element Contract (dist/index.html)
+The fixture HTML represents the deployed temperature-converter page:
 
-## Error & Copy Strings (PRD verbatim)
+| Element | Role |
+|---------|------|
+| `<link rel="stylesheet" href="..." integrity="sha384-..." crossorigin="anonymous">` | External stylesheet with SRI |
+| `<script src="..." integrity="sha384-..." crossorigin="anonymous">` | External bundle with SRI |
+| No `<style>` tags | CSP `style-src 'self'` compliance |
+| No inline script content | CSP `script-src 'self'` compliance |
 
-| String key | Exact text |
-|------------|-----------|
-| `FORMAT_ERROR_MSG` | `Invalid format — only decimal numbers are accepted (e.g. -23.5).` |
-| `RANGE_ERROR_MSG` | `Out of range — enter a value between -1 000 000 and 1 000 000.` |
-| Empty-hint | `Enter a temperature in Celsius` |
-| Helper text | `Decimals and negatives OK. Use "." as the decimal point.` |
-| Context line | `was: {fahrenheit} · {kelvin}` (e.g. `was: 212.00 °F · 373.15 K`) |
+## Security Headers Contract (_headers)
+Five required headers asserted by `checkSecurityHeaders`:
+
+| Header | Required value |
+|--------|---------------|
+| `Content-Security-Policy` | Must contain `script-src 'self'` and must NOT contain `unsafe-inline` |
+| `X-Frame-Options` | Present |
+| `X-Content-Type-Options` | Present |
+| `Referrer-Policy` | Present |
+| `Permissions-Policy` | Present |
 
 ## Requirements
 
-### Test Coverage (Acceptance Criteria)
-
-#### State Transitions
-| Scenario | Expected |
-|----------|----------|
-| Initial (empty input) | outputs `—`, error hidden, hint visible |
-| Input `100` | `212.00 °F`, `373.15 K`, no error |
-| Input `0` | `32.00 °F`, `273.15 K` |
-| Input `-40` | `-40.00 °F`, `233.15 K` |
-| Input `36.6` | `97.88 °F`, `309.75 K` |
-| Input `abc` | error visible with FORMAT_ERROR_MSG, outputs `—` |
-| Input `1500000` | error visible with RANGE_ERROR_MSG, outputs `—` |
-| Input `100` then `abc` | context line visible: `was: 212.00 °F · 373.15 K` |
-| Clear after error | error hidden, hint visible, outputs `—`, context hidden |
-| Pending inputs (`-`, `.`, `-.`, `1.`) | error stays hidden, outputs unchanged |
-| `±` with `36.6` | input becomes `-36.6`, outputs `-33.88 °F` / `236.55 K` |
-| `±` with empty | no-op |
-
-#### Static Text
-| Element | Expected content |
-|---------|-----------------|
-| `#empty-hint` | `Enter a temperature in Celsius` |
-| `#helper-text` | `Decimals and negatives OK. Use "." as the decimal point.` |
+### Script Checks (Acceptance Criteria)
+| Check | Expected |
+|-------|----------|
+| `checkNoInlineStyles(html)` | Throws if any `<style>` tag found; passes on clean HTML |
+| `checkNoInlineScripts(html)` | Throws if any `<script>` has non-empty text content; passes for src-only scripts |
+| `checkSRI(html)` | Throws if any `<script src>` or `<link rel="stylesheet" href>` is missing `integrity="sha384-..."` or `crossorigin="anonymous"` |
+| `checkSecurityHeaders(content)` | Throws if any of the 5 required header names is absent from the deploy config |
+| `checkCSP(content)` | Throws if CSP missing `script-src 'self'` or contains `unsafe-inline` |
+| Full run (`node scripts/check-security.js`) | Exit 0 on clean fixture; exit 1 on injected inline script |
 
 ### Environment
-- Vitest + jsdom (already configured in `vitest.config.ts`)
-- Static import of `../lib/main` and `../lib/convert`
-- `npm test` in `frontend/` must exit 0 (covers both test files)
+- Node.js 20+ (available in CI Docker image)
+- `jsdom` already in devDependencies — used for HTML parsing
+- `npm run check:security` added to `frontend/package.json`
+- Vitest tests in `frontend/test/check-security.test.ts`; run via `npm test`
 
 ### Security
-Demo-mode / local-only. No authentication required. All validation is client-side in `lib/convert.ts`.
+Demo-mode / local-only. The script itself is a pure static analyser — no network calls, no authentication.
 
 ### Observability
-N/A for a pure test PR — no runtime observability hooks.
+N/A — this is a static analysis script. Exit codes and stdout messages are the observability signal.
 
 ## Success Criteria
-- [x] `frontend/lib/main.ts` exists and exports `init`, `FORMAT_ERROR_MSG`, `RANGE_ERROR_MSG`
-- [x] `frontend/tests/dom.test.ts` exists and covers all scenarios above
-- [x] All state-transition tests pass
-- [x] All static-text tests pass
-- [x] `npm test` exits 0 in `frontend/` (both test files green)
-- [x] No existing tests broken (`convert.test.ts` and `example.test.tsx` still pass)
+- [ ] `frontend/scripts/check-security.js` exists and exports all five check functions
+- [ ] `frontend/dist/index.html` exists as a compliant security fixture
+- [ ] `frontend/_headers` exists with all five required security response headers
+- [ ] `"check:security"` script added to `frontend/package.json`
+- [ ] `npm run check:security` exits 0 on the clean fixture
+- [ ] Injecting `<script>alert(1)</script>` into `dist/index.html` causes exit 1
+- [ ] All vitest tests in `test/check-security.test.ts` pass
+- [ ] No existing tests broken (`convert.test.ts`, `dom.test.ts`, `example.test.tsx` still pass)
 
 ## Known Limitations
-
-1. **No visual UI shipped in this PR** — `lib/main.ts` is wired up as a tested library; `app/page.tsx` still renders the scaffold haiku-agent chat UI and does not include the temperature-converter HTML elements. A follow-on PR would add the HTML fixture to `page.tsx` and call `init()` on mount.
-
-2. **No backend changes** — all conversion logic is client-side in `lib/convert.ts`. There is no server-side validation endpoint, no persistence, and no API contract with the FastAPI backend.
-
-3. **No observability hooks** — this is a pure frontend test PR; no runtime metrics, logging, or error-reporting are included.
+None identified at contract-creation time. Will be updated if any are discovered during implementation.
