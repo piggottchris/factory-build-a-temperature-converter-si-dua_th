@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Temperature Converter</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="converter-card" role="main">
+      <h1 class="converter-title">Temperature Converter</h1>
+
+      <div class="input-group">
+        <label for="celsius-input" class="input-label">Celsius (°C)</label>
+        <input
+          id="celsius-input"
+          type="text"
+          inputmode="decimal"
+          class="celsius-input"
+          placeholder="e.g. 100"
+          autocomplete="off"
+          aria-describedby="empty-hint"
+        />
+      </div>
+
+      <!-- Empty state hint -->
+      <p id="empty-hint" class="empty-hint" aria-live="polite">
+        Type a temperature to convert.
+      </p>
+
+      <!-- Error slot (shown on invalid input) -->
+      <p
+        id="error-message"
+        class="error-message"
+        role="alert"
+        aria-live="assertive"
+        hidden
+      ></p>
+
+      <!-- Results -->
+      <div class="results" aria-label="Conversion results">
+        <div class="result-row">
+          <span class="result-label">Fahrenheit</span>
+          <output id="fahrenheit-output" class="result-value" for="celsius-input">—</output>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Kelvin</span>
+          <output id="kelvin-output" class="result-value" for="celsius-input">—</output>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
