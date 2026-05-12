@@ -21,6 +21,14 @@
  *
  * Returns a cleanup function that removes the event listener and cancels any
  * pending debounce timer; call it in test afterEach / component unmount hooks.
+ *
+ * Reliability guarantees:
+ *  - The cleanup function is idempotent: calling it multiple times is safe
+ *    and has no effect after the first call.
+ *  - Any debounce timer that fires after cleanup has already run is a no-op:
+ *    the timer callback checks the `unmounted` flag before touching the DOM.
+ *    This prevents zombie timers from writing to detached (orphan) elements
+ *    when the container is re-used or the widget is double-mounted.
  */
 
 import {
@@ -92,6 +100,10 @@ export function mountTemperatureWidget(container: HTMLElement): () => void {
   // State
   // ------------------------------------------------------------------
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Set to true by the cleanup function; debounce callbacks check this flag
+   *  before touching the DOM so that any timer that fires after unmount is
+   *  a guaranteed no-op (no writes to detached / orphan elements). */
+  let unmounted = false;
 
   // ------------------------------------------------------------------
   // Event handler
@@ -132,6 +144,7 @@ export function mountTemperatureWidget(container: HTMLElement): () => void {
         tempResult.textContent = `${f} °F / ${k} K`;
         tempError.textContent = "";
         debounceTimer = setTimeout(() => {
+          if (unmounted) return;
           srResult.textContent = `${f} degrees Fahrenheit, ${k} Kelvin`;
           srError.textContent = "";
         }, ANNOUNCE_DEBOUNCE_MS);
@@ -147,6 +160,7 @@ export function mountTemperatureWidget(container: HTMLElement): () => void {
         tempResult.textContent = "";
         tempError.textContent = msg;
         debounceTimer = setTimeout(() => {
+          if (unmounted) return;
           srError.textContent = msg;
           srResult.textContent = "";
         }, ANNOUNCE_DEBOUNCE_MS);
@@ -161,6 +175,12 @@ export function mountTemperatureWidget(container: HTMLElement): () => void {
   // Cleanup
   // ------------------------------------------------------------------
   return function unmount(): void {
+    // Idempotent: safe to call multiple times.  The second and subsequent
+    // calls are no-ops, protecting against the common double-unmount pattern
+    // (e.g. React StrictMode double-invoking effects, or explicit cleanup
+    // followed by container re-use).
+    if (unmounted) return;
+    unmounted = true;
     input.removeEventListener("input", handleInput);
     if (debounceTimer !== null) {
       clearTimeout(debounceTimer);

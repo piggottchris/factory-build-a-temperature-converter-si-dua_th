@@ -125,3 +125,88 @@ describe("Temperature Converter — announcement debounce", () => {
     expect(srError.textContent).toBe("");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Reliability: double-mount and double-unmount safety
+// ---------------------------------------------------------------------------
+
+describe("Temperature Converter — reliability (idempotent cleanup / double-mount)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = "";
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.innerHTML = "";
+  });
+
+  it("double-unmount: calling cleanup twice does not throw", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const unmount = mountTemperatureWidget(container);
+    expect(() => {
+      unmount();
+      unmount(); // second call must be a no-op, not an error
+    }).not.toThrow();
+  });
+
+  it("zombie timer: a pending debounce from before cleanup does not write to the DOM after cleanup", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const unmount = mountTemperatureWidget(container);
+
+    const input = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const srResult = container.querySelector<HTMLElement>("#sr-result")!;
+
+    // Type a valid value to arm the debounce timer.
+    input.value = "25";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Advance halfway — timer is still pending.
+    vi.advanceTimersByTime(200);
+    expect(srResult.textContent).toBe(""); // not fired yet
+
+    // Unmount while the timer is still pending.
+    unmount();
+
+    // Advance past the full debounce window.
+    vi.advanceTimersByTime(400);
+
+    // The zombie timer must NOT have written to the (now potentially orphaned)
+    // SR element — the unmounted flag should have suppressed the callback.
+    expect(srResult.textContent).toBe("");
+  });
+
+  it("double-mount: second mount replaces widget; first cleanup does not interfere", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    // First mount — arm a debounce timer, then abandon the cleanup.
+    const unmount1 = mountTemperatureWidget(container);
+    const input1 = container.querySelector<HTMLInputElement>("#temp-input")!;
+    input1.value = "99";
+    input1.dispatchEvent(new Event("input", { bubbles: true }));
+    // (do NOT call unmount1 — simulates a caller that forgot)
+
+    // Second mount — replaces innerHTML, orphaning the first widget's nodes.
+    const unmount2 = mountTemperatureWidget(container);
+    const input2 = container.querySelector<HTMLInputElement>("#temp-input")!;
+    const srResult2 = container.querySelector<HTMLElement>("#sr-result")!;
+
+    // Type a new value into the second widget.
+    input2.value = "0";
+    input2.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Advance enough to fire both debounce windows.
+    vi.advanceTimersByTime(500);
+
+    // The second widget's SR region should show the result for 0 °C (32.00 °F / 273.15 K).
+    expect(srResult2.textContent).toContain("32.00");
+    // The orphaned first-mount timer must not have written garbage into the
+    // second widget's SR element (it would have written "99 °C" data).
+    expect(srResult2.textContent).not.toContain("210.20");
+
+    unmount2();
+  });
+});
