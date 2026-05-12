@@ -156,3 +156,42 @@ describe("vercel.json — all five headers present", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Hardening headers added in Security Hardening pass
+// ---------------------------------------------------------------------------
+describe("vercel.json — Strict-Transport-Security", () => {
+  it("is present", () => {
+    expect(allHeaders.has("Strict-Transport-Security")).toBe(true);
+  });
+
+  it("sets a long max-age with includeSubDomains and preload", () => {
+    const hsts = allHeaders.get("Strict-Transport-Security") ?? "";
+    // max-age must be at least 1 year (31536000 seconds) to qualify for preload list
+    const match = hsts.match(/max-age=(\d+)/);
+    expect(match).not.toBeNull();
+    expect(parseInt(match![1], 10)).toBeGreaterThanOrEqual(31536000);
+    expect(hsts).toContain("includeSubDomains");
+    expect(hsts).toContain("preload");
+  });
+});
+
+describe("vercel.json — Cross-Origin-Opener-Policy", () => {
+  it("is present", () => {
+    expect(allHeaders.has("Cross-Origin-Opener-Policy")).toBe(true);
+  });
+
+  it("equals 'same-origin'", () => {
+    expect(allHeaders.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+  });
+});
+
+describe("vercel.json — Cross-Origin-Resource-Policy", () => {
+  it("is present", () => {
+    expect(allHeaders.has("Cross-Origin-Resource-Policy")).toBe(true);
+  });
+
+  it("equals 'same-origin'", () => {
+    expect(allHeaders.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+  });
+});
