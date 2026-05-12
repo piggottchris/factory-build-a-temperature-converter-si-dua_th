@@ -11,6 +11,11 @@ name: dependency-review
 # Why fail-on-severity: high: matches the existing security-audit.yml
 # threshold so operators have one mental model for what blocks merge.
 #
+# Prerequisite: dependency-review-action requires the GitHub dependency graph.
+# For public repos this is enabled automatically; for private repos it requires
+# GitHub Advanced Security (GHAS). This repository is public so no GHAS
+# licence is needed.
+#
 # No untrusted github.event.* inputs are interpolated into run blocks here.
 
 on:
