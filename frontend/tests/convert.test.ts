@@ -189,4 +189,16 @@ describe("formatNumber", () => {
   it("formats a small negative decimal", () => {
     expect(formatNumber(-0.5)).toBe("-0.50");
   });
+
+  it("throws TypeError for Infinity", () => {
+    expect(() => formatNumber(Infinity)).toThrow(TypeError);
+  });
+
+  it("throws TypeError for -Infinity", () => {
+    expect(() => formatNumber(-Infinity)).toThrow(TypeError);
+  });
+
+  it("throws TypeError for NaN", () => {
+    expect(() => formatNumber(NaN)).toThrow(TypeError);
+  });
 });

@@ -116,8 +116,19 @@ export function celsiusToKelvin(celsius: number): number {
  * Handles negative zero explicitly so that `-0` displays as `"0.00"` rather
  * than `"-0.00"`. All other values use the standard half-away-from-zero
  * rounding implemented by `Number.prototype.toFixed`.
+ *
+ * Throws a TypeError for non-finite inputs (NaN, Infinity, -Infinity) so
+ * callers receive an explicit error rather than a misleading string like
+ * "Infinity" or "NaN". The parser never produces non-finite values in a
+ * `valid` result, but `formatNumber` is a public export and must be
+ * defensively hardened.
  */
 export function formatNumber(n: number): string {
+  if (!isFinite(n)) {
+    throw new TypeError(
+      `formatNumber requires a finite number; received ${n}`
+    );
+  }
   // Object.is distinguishes -0 from +0
   const normalised = Object.is(n, -0) ? 0 : n;
   return normalised.toFixed(2);
