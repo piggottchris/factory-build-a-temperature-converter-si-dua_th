@@ -31,8 +31,8 @@ const JS_BUDGET = 10_240;
 const CSS_BUDGET = 4_096;
 
 /**
- * Compute the gzip-compressed size of a Buffer or string.
- * @param {Buffer | string} content
+ * Compute the gzip-compressed size of a Buffer.
+ * @param {Buffer} content
  * @returns {number}
  */
 function gzipSize(content) {
@@ -40,14 +40,45 @@ function gzipSize(content) {
 }
 
 /**
- * Core bundle-check logic.  Exported so unit tests can call it directly
- * without spawning a child process.
+ * Measure every file in `filePaths` and return per-file sizes + total.
+ * Each file is read exactly once.
+ *
+ * @param {string[]} filePaths
+ * @returns {{ sizes: Array<{name: string; gzip: number}>; total: number }}
+ */
+function measureFiles(filePaths) {
+  let total = 0;
+  const sizes = filePaths.map((filePath) => {
+    const gzip = gzipSize(fs.readFileSync(filePath));
+    total += gzip;
+    return { name: path.basename(filePath), gzip };
+  });
+  return { sizes, total };
+}
+
+/**
+ * Build a violation message listing all files contributing to the budget bust.
+ *
+ * @param {string} label        "JS" or "CSS"
+ * @param {number} total        Total gzip bytes
+ * @param {number} budget       Budget limit in bytes
+ * @param {Array<{name: string; gzip: number}>} sizes
+ * @returns {string}
+ */
+function violationMessage(label, total, budget, sizes) {
+  const fileLines = sizes
+    .map((f) => `    ${f.name}: ${f.gzip} B (gzip)`)
+    .join("\n");
+  return `${label} total gzip: ${total} B exceeds budget ${budget} B\n${fileLines}`;
+}
+
+/**
+ * Core bundle-check logic.  Exported for direct use in tests.
  *
  * @param {string} distDir  Path to the directory containing .js/.css assets.
  * @returns {{ ok: boolean; stdout: string; stderr: string }}
  */
 function checkBundles(distDir) {
-  // Directory absent → nothing to check → pass.
   if (!fs.existsSync(distDir)) {
     return {
       ok: true,
@@ -57,74 +88,42 @@ function checkBundles(distDir) {
   }
 
   const entries = fs.readdirSync(distDir);
-  const jsFiles = entries
-    .filter((f) => f.endsWith(".js"))
-    .map((f) => path.join(distDir, f));
-  const cssFiles = entries
-    .filter((f) => f.endsWith(".css"))
-    .map((f) => path.join(distDir, f));
+  const toAbsolute = (/** @type {string} */ f) => path.join(distDir, f);
 
-  /** @type {string[]} */
-  const lines = [];
-  /** @type {string[]} */
+  const js = measureFiles(
+    entries.filter((f) => f.endsWith(".js")).map(toAbsolute)
+  );
+  const css = measureFiles(
+    entries.filter((f) => f.endsWith(".css")).map(toAbsolute)
+  );
+
+  // Summary lines printed on both pass and fail for visibility.
+  const summaryLines = [
+    ...js.sizes.map((f) => `  JS  ${f.name}: ${f.gzip} B (gzip)`),
+    ...css.sizes.map((f) => `  CSS ${f.name}: ${f.gzip} B (gzip)`),
+    `  JS  total: ${js.total} / ${JS_BUDGET} B (gzip)`,
+    `  CSS total: ${css.total} / ${CSS_BUDGET} B (gzip)`,
+  ].join("\n");
+
   const violations = [];
-
-  // --- JS ---
-  let jsTotalGzip = 0;
-  for (const file of jsFiles) {
-    const content = fs.readFileSync(file);
-    const size = gzipSize(content);
-    jsTotalGzip += size;
-    lines.push(`  JS  ${path.basename(file)}: ${size} B (gzip)`);
-  }
-  if (jsTotalGzip > JS_BUDGET) {
-    violations.push(
-      `JS total gzip: ${jsTotalGzip} B exceeds budget ${JS_BUDGET} B\n` +
-        jsFiles
-          .map((f) => {
-            const sz = gzipSize(fs.readFileSync(f));
-            return `    ${path.basename(f)}: ${sz} B (gzip)`;
-          })
-          .join("\n")
-    );
-  }
-
-  // --- CSS ---
-  let cssTotalGzip = 0;
-  for (const file of cssFiles) {
-    const content = fs.readFileSync(file);
-    const size = gzipSize(content);
-    cssTotalGzip += size;
-    lines.push(`  CSS ${path.basename(file)}: ${size} B (gzip)`);
-  }
-  if (cssTotalGzip > CSS_BUDGET) {
-    violations.push(
-      `CSS total gzip: ${cssTotalGzip} B exceeds budget ${CSS_BUDGET} B\n` +
-        cssFiles
-          .map((f) => {
-            const sz = gzipSize(fs.readFileSync(f));
-            return `    ${path.basename(f)}: ${sz} B (gzip)`;
-          })
-          .join("\n")
-    );
-  }
+  if (js.total > JS_BUDGET)
+    violations.push(violationMessage("JS", js.total, JS_BUDGET, js.sizes));
+  if (css.total > CSS_BUDGET)
+    violations.push(violationMessage("CSS", css.total, CSS_BUDGET, css.sizes));
 
   if (violations.length > 0) {
-    const stderr =
-      `check-bundle FAILED\n` +
-      violations.join("\n") +
-      "\n\nAll assets scanned:\n" +
-      lines.join("\n") +
-      "\n";
-    return { ok: false, stdout: "", stderr };
+    return {
+      ok: false,
+      stdout: "",
+      stderr: `check-bundle FAILED\n${violations.join("\n")}\n\n${summaryLines}\n`,
+    };
   }
 
-  const stdout =
-    `check-bundle PASSED\n` +
-    lines.join("\n") +
-    `\n  JS  total: ${jsTotalGzip} / ${JS_BUDGET} B (gzip)\n` +
-    `  CSS total: ${cssTotalGzip} / ${CSS_BUDGET} B (gzip)\n`;
-  return { ok: true, stdout, stderr: "" };
+  return {
+    ok: true,
+    stdout: `check-bundle PASSED\n${summaryLines}\n`,
+    stderr: "",
+  };
 }
 
 module.exports = { checkBundles, JS_BUDGET, CSS_BUDGET };
