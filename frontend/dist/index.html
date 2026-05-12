@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Temperature Converter</title>
+  <!--
+    All styles loaded from an external file with Subresource Integrity.
+    No inline <style> tags — required by CSP style-src 'self'.
+    The sha384 hash below is a placeholder for the fixture; in a real CI
+    pipeline it would be computed from the actual bundle output.
+  -->
+  <link
+    rel="stylesheet"
+    href="assets/styles-a1b2c3d4.css"
+    integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC"
+    crossorigin="anonymous"
+  />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Temperature Converter</h1>
+    </header>
+
+    <main>
+      <label for="celsius-input">Celsius</label>
+      <input id="celsius-input" type="text" maxlength="32" autocomplete="off" />
+      <button id="sign-toggle" aria-label="Toggle sign" type="button">±</button>
+
+      <p id="empty-hint">Enter a temperature in Celsius</p>
+      <p id="helper-text">Decimals and negatives OK. Use "." as the decimal point.</p>
+      <p id="error-slot" role="alert" aria-live="assertive" hidden></p>
+
+      <section aria-label="Conversion results">
+        <p id="fahrenheit-output" aria-label="Fahrenheit">—</p>
+        <p id="kelvin-output" aria-label="Kelvin">—</p>
+      </section>
+
+      <p id="context-line" hidden></p>
+    </main>
+  </div>
+
+  <!--
+    Application bundle loaded from an external file with Subresource Integrity.
+    No inline <script> content — required by CSP script-src 'self'.
+    The sha384 hash below is a placeholder for the fixture.
+  -->
+  <script
+    src="assets/bundle-e5f6a7b8.js"
+    integrity="sha384-p9HjXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wD"
+    crossorigin="anonymous"
+  ></script>
+</body>
+</html>

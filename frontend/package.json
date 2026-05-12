@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
-    "test": "vitest"
+    "test": "vitest",
+    "check:security": "node scripts/check-security.js"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.53",
