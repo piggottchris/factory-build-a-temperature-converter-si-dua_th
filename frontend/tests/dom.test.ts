@@ -355,3 +355,33 @@ describe("dom — input maxLength enforcement", () => {
     expect(el<HTMLInputElement>("celsius-input").maxLength).toBe(32);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 16. Reliability: init() null-guard — missing elements throw a clear error
+// ---------------------------------------------------------------------------
+
+describe("dom — init() null-guard: missing required elements", () => {
+  // The required element IDs wired by init().
+  const requiredIds = [
+    "celsius-input",
+    "sign-toggle",
+    "empty-hint",
+    "error-slot",
+    "fahrenheit-output",
+    "kelvin-output",
+    "context-line",
+  ];
+
+  requiredIds.forEach((missingId) => {
+    it(`throws when #${missingId} is absent, naming the element in the message`, () => {
+      // Build the full fixture then remove the one element under test.
+      document.body.innerHTML = FIXTURE;
+      const target = document.getElementById(missingId);
+      target?.parentNode?.removeChild(target);
+
+      expect(() => init()).toThrowError(
+        new RegExp(`#${missingId}`)
+      );
+    });
+  });
+});

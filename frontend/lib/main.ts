@@ -43,11 +43,40 @@ export const RANGE_ERROR_MSG =
   "Out of range — enter a value between -1 000 000 and 1 000 000.";
 
 // ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Look up a required DOM element by ID and throw a descriptive error if it is
+ * absent.  The TypeScript cast `as T` is safe here because we guard explicitly
+ * before returning.
+ *
+ * This prevents the cryptic "Cannot set properties of null" TypeError that
+ * would otherwise surface several lines later, making it hard to identify
+ * which element is missing.
+ */
+function requireElement<T extends HTMLElement = HTMLElement>(id: string): T {
+  const el = document.getElementById(id) as T | null;
+  if (!el) {
+    throw new Error(
+      `init(): required element #${id} was not found in the document. ` +
+        `Make sure the HTML fixture is present before calling init().`
+    );
+  }
+  return el;
+}
+
+// ---------------------------------------------------------------------------
 // Controller
 // ---------------------------------------------------------------------------
 
 /**
  * Wire up all event listeners for the converter UI.
+ *
+ * Throws an `Error` (with the missing element's ID in the message) if any of
+ * the eight required DOM elements are absent at call time.  This makes
+ * misconfigured HTML fail loudly and immediately rather than crashing with a
+ * cryptic null-dereference several frames deeper.
  *
  * State machine (per input event):
  *
@@ -61,19 +90,23 @@ export const RANGE_ERROR_MSG =
  *
  *   INVALID → outputs "—", error visible with correct message.
  *             If lastValidF is set, show context line "was: … · …".
+ *
+ * Cleanup / destroy: this demo does not expose a destroy() function. The
+ * event listeners are attached to elements that live inside a single
+ * `document.body.innerHTML` reset boundary (as in the test suite), so there
+ * is no persistent leak across resets. If this controller were ever mounted
+ * in a long-lived SPA component, callers should capture the AbortController
+ * pattern and pass its signal to addEventListener — but for the current
+ * single-page, single-init use-case that complexity is not warranted.
  */
 export function init(): void {
-  const input = document.getElementById("celsius-input") as HTMLInputElement;
-  const signToggle = document.getElementById(
-    "sign-toggle"
-  ) as HTMLButtonElement;
-  const emptyHint = document.getElementById("empty-hint") as HTMLElement;
-  const errorSlot = document.getElementById("error-slot") as HTMLElement;
-  const fahrenheitOutput = document.getElementById(
-    "fahrenheit-output"
-  ) as HTMLElement;
-  const kelvinOutput = document.getElementById("kelvin-output") as HTMLElement;
-  const contextLine = document.getElementById("context-line") as HTMLElement;
+  const input = requireElement<HTMLInputElement>("celsius-input");
+  const signToggle = requireElement<HTMLButtonElement>("sign-toggle");
+  const emptyHint = requireElement("empty-hint");
+  const errorSlot = requireElement("error-slot");
+  const fahrenheitOutput = requireElement("fahrenheit-output");
+  const kelvinOutput = requireElement("kelvin-output");
+  const contextLine = requireElement("context-line");
 
   // Enforce the parser's length cap at the browser level so arbitrarily long
   // pastes are truncated before they ever reach parseTemperature().
