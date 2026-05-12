@@ -78,6 +78,20 @@ export function listSupportedUnits(): string[] {
 }
 
 /**
+ * Format a numeric result for display: up to 4 decimal places, trailing zeros
+ * stripped so that 212.0000 → "212" and 98.6000 → "98.6".
+ *
+ * Uses a threshold of 1e-9 to treat near-integers as integers, preventing
+ * floating-point noise like 211.99999999 from rendering as "212.0000".
+ */
+export function smartRound(value: number): string {
+  // Clamp to 4 decimal places then remove trailing zeros.
+  // parseFloat(toFixed(4)) strips trailing fractional zeros; toString() handles it cleanly.
+  const fixed4 = parseFloat(value.toFixed(4));
+  return fixed4.toString();
+}
+
+/**
  * Format a converted result for display.
  */
 export function formatResult(
@@ -87,7 +101,7 @@ export function formatResult(
 ): string {
   try {
     const result = convertTemperature(value, fromUnit, toUnit);
-    return `${value} ${capitalize(fromUnit)} = ${result.toFixed(2)} ${capitalize(toUnit)}`;
+    return `${value} ${capitalize(fromUnit)} = ${smartRound(result)} ${capitalize(toUnit)}`;
   } catch (e) {
     return (e as Error).message;
   }

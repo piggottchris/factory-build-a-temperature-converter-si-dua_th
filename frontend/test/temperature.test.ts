@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   convertTemperature,
   listSupportedUnits,
+  smartRound,
   type TemperatureUnit,
 } from "../app/lib/temperature";
 
@@ -113,6 +114,40 @@ describe("convertTemperature", () => {
     expect(() => convertTemperature(-Infinity, "kelvin", "celsius")).toThrow(
       /finite number.*Infinity/i
     );
+  });
+});
+
+describe("smartRound", () => {
+  it("formats a whole number without decimals", () => {
+    expect(smartRound(212)).toBe("212");
+  });
+
+  it("strips trailing zeros from .toFixed(4) output", () => {
+    // 212°F from 100°C is exactly 212.0
+    expect(smartRound(212.0)).toBe("212");
+  });
+
+  it("preserves meaningful decimal places", () => {
+    // 37°C to F = 98.6 exactly
+    expect(smartRound(98.6)).toBe("98.6");
+  });
+
+  it("rounds to 4 decimal places max", () => {
+    // 1/3 ≈ 0.3333333…
+    expect(smartRound(1 / 3)).toBe("0.3333");
+  });
+
+  it("strips trailing zeros from a value with fewer than 4 significant decimals", () => {
+    // 0.5 → "0.5" not "0.5000"
+    expect(smartRound(0.5)).toBe("0.5");
+  });
+
+  it("handles negative values", () => {
+    expect(smartRound(-40)).toBe("-40");
+  });
+
+  it("handles zero", () => {
+    expect(smartRound(0)).toBe("0");
   });
 });
 

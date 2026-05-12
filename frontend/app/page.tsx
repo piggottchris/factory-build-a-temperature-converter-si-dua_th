@@ -7,6 +7,7 @@ import "@copilotkit/react-ui/styles.css";
 import {
   convertTemperature,
   listSupportedUnits,
+  smartRound,
   type TemperatureUnit,
 } from "./lib/temperature";
 
@@ -29,7 +30,7 @@ function QuickConverter() {
     }
     try {
       const converted = convertTemperature(num, fromUnit, toUnit);
-      setResult(converted.toFixed(4));
+      setResult(smartRound(converted));
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -53,6 +54,7 @@ function QuickConverter() {
             type="number"
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleConvert()}
             placeholder="e.g. 100"
             className="w-32 rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Temperature value"
