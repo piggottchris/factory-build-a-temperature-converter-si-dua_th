@@ -126,6 +126,31 @@ describe("main.ts — DOM state machine", () => {
       expect(refs.errorMsg.hidden).toBe(true);
     });
 
+    it("does not show error for lone plus sign", () => {
+      triggerInput("+");
+      expect(refs.errorMsg.hidden).toBe(true);
+    });
+
+    it("does not show error for partial scientific notation (trailing E)", () => {
+      triggerInput("1e");
+      expect(refs.errorMsg.hidden).toBe(true);
+    });
+
+    it("does not show error for partial scientific notation (uppercase trailing E)", () => {
+      triggerInput("1E");
+      expect(refs.errorMsg.hidden).toBe(true);
+    });
+
+    it("does not show error for partial scientific notation (E with sign but no digits)", () => {
+      triggerInput("1e+");
+      expect(refs.errorMsg.hidden).toBe(true);
+    });
+
+    it("does not show error for partial scientific notation (E- partial)", () => {
+      triggerInput("1e-");
+      expect(refs.errorMsg.hidden).toBe(true);
+    });
+
     it("hides empty-hint while pending", () => {
       triggerInput("-");
       expect(refs.emptyHint.hidden).toBe(true);
@@ -194,6 +219,18 @@ describe("main.ts — DOM state machine", () => {
       triggerInput("-1000000");
       expect(refs.errorMsg.hidden).toBe(true);
     });
+
+    it("accepts scientific notation 1e6 as valid (= 1,000,000)", () => {
+      triggerInput("1e6");
+      expect(refs.errorMsg.hidden).toBe(true);
+      expect(refs.fahrenheit.textContent).toBe("1800032.00 °F");
+    });
+
+    it("accepts Unicode minus sign (U+2212) by normalising to ASCII hyphen", () => {
+      triggerInput("−40"); // −40
+      expect(refs.errorMsg.hidden).toBe(true);
+      expect(refs.fahrenheit.textContent).toBe("-40.00 °F");
+    });
   });
 
   // ── INVALID — format error ────────────────────────────────────────────────────
@@ -209,6 +246,21 @@ describe("main.ts — DOM state machine", () => {
 
     it("shows format error for mixed input", () => {
       triggerInput("1a2");
+      expect(refs.errorMsg.hidden).toBe(false);
+    });
+
+    it("shows format error for hex notation (0x10)", () => {
+      triggerInput("0x10");
+      expect(refs.errorMsg.hidden).toBe(false);
+    });
+
+    it("shows format error for binary notation (0b10)", () => {
+      triggerInput("0b10");
+      expect(refs.errorMsg.hidden).toBe(false);
+    });
+
+    it("shows format error for underscore-separated number (1_000)", () => {
+      triggerInput("1_000");
       expect(refs.errorMsg.hidden).toBe(false);
     });
 

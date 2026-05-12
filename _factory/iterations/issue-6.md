@@ -36,3 +36,26 @@ exfiltration while permitting only the same-origin ES module bundle and styleshe
 **Files touched:** `src/index.html`
 
 **Tests:** pnpm test → 31 passed
+
+## Pass 3 — Backend Reliability: Fix parseCelsius to reject non-decimal literals and treat partial scientific notation as pending
+
+**Finding:** Three reliability gaps in `src/convert.ts` `parseCelsius`:
+
+1. **Bug — hex/binary literals accepted as valid**: `Number()` silently parses `"0x10"` as 16 and `"0b10"` as 2, so those inputs reached the `valid` branch and produced nonsensical temperature conversions. A temperature field should only accept plain decimal notation.
+
+2. **UX reliability — partial scientific notation shown as error**: `"1e"`, `"1E+"`, `"1e-"` and similar incomplete exponent forms converted to `NaN` via `Number()` and were classified as `invalid:format`. This caused the error message to flash while the user was mid-keystroke typing `"1e6"`. They should be `pending`.
+
+3. **Minor — Unicode minus (U+2212) treated as invalid**: Copying a negative temperature from a rich-text source (e.g. "−40 °C") produces a Unicode minus sign that `Number()` rejects. Normalising it to ASCII `-` before parsing makes copy-paste work transparently.
+
+The existing pending guard (`trimmed === "-" || trimmed.endsWith(".")`) only covered three literal strings; it had no coverage for the partial-exponent family of mid-input states.
+
+**Change:** Rewrote the parsing logic in `src/convert.ts`:
+- Added `DECIMAL_NUMBER_RE` — a strict regex that matches only plain decimal notation (integer, decimal, and scientific forms). Explicitly rejects hex (`0x`), binary (`0b`), octal (`0o`), underscore-separated (`1_000`), comma-separated, and `Infinity`/`NaN` strings.
+- Added `PENDING_RES` — an array of three regexes covering the lone-sign/dot family (`-`, `+`, `.`, `-.`, `+.`) and the partial-exponent family (`1e`, `1e+`, `1e-`).
+- Added Unicode minus normalisation (`raw.replace(/−/g, "-")`) before all other checks.
+- Removed the previous ad-hoc string-equality pending guard.
+- Added 10 new tests in `tests/dom.test.ts` covering: lone `+`, partial sci-notation variants (`1e`, `1E`, `1e+`, `1e-`), hex/binary format errors (`0x10`, `0b10`), underscore format error, full sci-notation valid case (`1e6`), and Unicode minus valid case (`−40`).
+
+**Files touched:** `src/convert.ts`, `tests/dom.test.ts`
+
+**Tests:** pnpm test → 41 passed (was 31)
