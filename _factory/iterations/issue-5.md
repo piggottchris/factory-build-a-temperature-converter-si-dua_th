@@ -1,3 +1,25 @@
+## Iteration 5 — Product Acceptance: all 8 criteria verified green
+
+- Critique: No gaps found. All 8 PRODUCT_ACCEPTANCE.md criteria were already ticked ✅ by the end of Pass 4. This pass performed a systematic cross-check of each criterion against the live CSS source and the Vitest output to confirm nothing was ticked prematurely or without corresponding code.
+
+- Change:
+  (a) Verified `frontend/src/styles.css` line by line against every CSS rule stated in the issue brief:
+      - Criterion 1: `.card { width: calc(100vw - 2 * var(--card-side-margin)) }` with `--card-side-margin: 16px` — equivalent to `calc(100vw - 32px)`. CONFIRMED.
+      - Criterion 2: `body { padding: env(safe-area-inset-top, 0px) … }` — all four insets present with `0px` fallback. CONFIRMED.
+      - Criterion 3: `@media (min-width: 480px) { .card { max-width: var(--card-max-width) } }` with `--card-max-width: 420px`; `body` gains `display:flex; justify-content:center; align-items:center`. CONFIRMED.
+      - Criteria 4/at-320px: No `overflow-x` or min-width wider than viewport. CONFIRMED structural.
+      - Criterion 5: `input, .btn { min-height: var(--tap-min); min-width: var(--tap-min) }` with `--tap-min: 44px`. CONFIRMED.
+      - Criterion 6: `--font-size-base: 14px` applied to `.card` and `body`. CONFIRMED.
+      - Criterion 7: `input { font-size: var(--font-size-input) }` with `--font-size-input: 16px`. CONFIRMED.
+  (b) Ran `npx vitest run --reporter=verbose`: 16 tests passed, 0 failed.
+  (c) Ran `npm run build`: Next.js standalone build succeeded, no warnings.
+  (d) Ran `pytest backend/ -q`: 2 passed, 0 failed.
+  (e) Confirmed all 5 iteration records are present in this file (Iterations 1–5).
+  (f) No code changes required — the stylesheet and tests were already correct and complete.
+
+- Files touched: _factory/iterations/issue-5.md (this record only)
+- Tests: 16 vitest passed / 0 failed; 2 pytest passed / 0 failed
+
 ## Iteration 4 — Test and Evaluation Coverage: scope assertions to correct selectors and media blocks
 
 - Critique:
