@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="converter-card" role="main">
+    <main class="converter-card">
       <h1 class="converter-title">Temperature Converter</h1>
 
       <div class="input-group">
@@ -21,15 +21,16 @@
           type="text"
           inputmode="decimal"
           class="celsius-input"
-          placeholder="e.g. 100"
+          placeholder="e.g. 100, -40, 36.6"
           autocomplete="off"
           aria-describedby="empty-hint"
+          autofocus
         />
       </div>
 
       <!-- Empty state hint -->
       <p id="empty-hint" class="empty-hint" aria-live="polite">
-        Type a temperature to convert.
+        Enter a Celsius value to see Fahrenheit and Kelvin equivalents.
       </p>
 
       <!-- Error slot (shown on invalid input) -->
@@ -44,12 +45,22 @@
       <!-- Results -->
       <div class="results" aria-label="Conversion results">
         <div class="result-row">
-          <span class="result-label">Fahrenheit</span>
-          <output id="fahrenheit-output" class="result-value" for="celsius-input">—</output>
+          <span class="result-label" aria-hidden="true">Fahrenheit (°F)</span>
+          <output
+            id="fahrenheit-output"
+            class="result-value"
+            for="celsius-input"
+            aria-label="Fahrenheit"
+          >—</output>
         </div>
         <div class="result-row">
-          <span class="result-label">Kelvin</span>
-          <output id="kelvin-output" class="result-value" for="celsius-input">—</output>
+          <span class="result-label" aria-hidden="true">Kelvin (K)</span>
+          <output
+            id="kelvin-output"
+            class="result-value"
+            for="celsius-input"
+            aria-label="Kelvin"
+          >—</output>
         </div>
       </div>
     </main>

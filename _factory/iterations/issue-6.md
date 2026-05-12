@@ -16,3 +16,23 @@ exfiltration while permitting only the same-origin ES module bundle and styleshe
 **Files touched:** `src/index.html`
 
 **Tests:** pnpm test → 31 passed (unchanged)
+
+## Pass 2 — UX/Product Polish
+
+**Finding:** Four UX gaps in `src/index.html`:
+1. The placeholder `"e.g. 100"` only showed a positive integer, giving no hint that negative values (`-40`) or decimal values (`36.6`) are valid inputs — users who type a comma-decimal or look for a range clue would get no guidance until they hit the error state.
+2. The empty-hint copy "Type a temperature to convert." tells the user *what to do* but not *what they'll get*; a more contextual hint sets expectations.
+3. The input had no `autofocus` attribute — on a single-purpose tool the user has to click before they can type, an unnecessary extra step.
+4. `<main role="main">` carried a redundant ARIA landmark role (the implicit role of `<main>` is already `main`). The result-row `<span>` labels were also not marked `aria-hidden` even though the `<output>` element's live value already contains the unit ("212.00 °F"), creating potential double-announcement by screen readers; and the `<output>` itself lacked an `aria-label` tying it back to its scale name.
+
+**Change:** Updated `src/index.html`:
+- Removed redundant `role="main"` from `<main>`.
+- Added `autofocus` to `#celsius-input` so keyboard users can type immediately on page load.
+- Improved placeholder to `"e.g. 100, -40, 36.6"` — shows positive, negative, and decimal format in one glance.
+- Improved empty-hint to `"Enter a Celsius value to see Fahrenheit and Kelvin equivalents."` — tells the user what the tool does and what they'll see.
+- Added `aria-hidden="true"` to the visual `<span class="result-label">` spans and added `aria-label="Fahrenheit"` / `aria-label="Kelvin"` to the `<output>` elements, so screen readers announce "Fahrenheit: 212.00 °F" without duplicating the label from the sibling span.
+- Added `(°F)` and `(K)` unit abbreviations to the visual result labels for sighted users who may not know the abbreviations from the output value alone.
+
+**Files touched:** `src/index.html`
+
+**Tests:** pnpm test → 31 passed
