@@ -52,3 +52,14 @@
   - PRODUCT_ACCEPTANCE.md
 
 - Tests: backend 42 passed → 49 passed (7 added); frontend 33 passed → 42 passed (9 added). No regressions.
+
+## Iteration 5 — Product Acceptance: finalize acceptance contract
+
+- Critique: All 9 UI/Frontend and Backend/Agent checkboxes in PRODUCT_ACCEPTANCE.md were left unchecked despite being fully implemented across the prior four passes. The Status section said "Updated at end of build — see bottom of this file" but contained no actual status. The file also had no documented security posture (auth model, local-only demo caveat, demo-mode note), leaving a reader unable to determine whether the app was production-ready or a POC. The Observability checkbox was ticked but the dd_init no-op behaviour was only described in comments inside dd_init.py, not surfaced in the acceptance contract.
+
+- Change: Traced every unchecked criterion against the live code: `page.tsx` line 144 renders the header/description (UI criterion 1); `CopilotKit agent="temperature_agent"` + route.ts registration satisfies criterion 2; `<CopilotChat>` provides built-in loading/empty/error states (criterion 3); `flex h-screen w-screen flex-col` + responsive `md:w-1/2` aside satisfies criterion 4; all 6 unit-pair conversion tests pass (backend criterion 1); `list_supported_units` returns 3 entries (criterion 2); `convert_temperature_tool` returns `"Error: ..."` on ValueError (criterion 3); `/agent-temperature` mount verified by `test_temperature_agent_route_is_mounted` (criterion 4); `/healthz` returns `agents` list including `temperature_agent.name` (criterion 5). Ticked all 9 previously unchecked boxes. Added a "Security Posture" section documenting: no auth (intentional POC), no persistence, ANTHROPIC_API_KEY from env, NaN/Inf/abs-zero guards, broad exception handler, and a production note. Updated Known Limitations to call out the no-auth constraint explicitly. Replaced the placeholder Status line with a COMPLETE block summarising all delivered capabilities and test counts.
+
+- Files touched:
+  - PRODUCT_ACCEPTANCE.md
+
+- Tests: backend 49 passed (no change); frontend 42 passed (no change). No regressions.
