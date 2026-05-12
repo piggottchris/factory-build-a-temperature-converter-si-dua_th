@@ -21,7 +21,8 @@ def test_healthz_responds(app):
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is True
-    assert body["agent"] == "haiku_agent"
+    # After adding temperature_agent, healthz returns an "agents" list
+    assert "haiku_agent" in body.get("agents", [body.get("agent", "")])
 
 
 def test_agent_route_is_mounted(app):
