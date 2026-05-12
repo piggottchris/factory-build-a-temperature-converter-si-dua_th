@@ -31,6 +31,15 @@ const JS_BUDGET = 10_240;
 const CSS_BUDGET = 4_096;
 
 /**
+ * Maximum raw (uncompressed) file size accepted before gzip measurement (bytes).
+ * Files larger than this are skipped with a warning rather than read entirely
+ * into memory, preventing resource exhaustion from unexpectedly large artifacts
+ * or a symlink that resolves to a huge file.
+ * 5 MB is well above any realistic JS/CSS bundle while still being safe.
+ */
+const MAX_RAW_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+/**
  * Compute the gzip-compressed size of a Buffer.
  * @param {Buffer} content
  * @returns {number}
@@ -43,17 +52,48 @@ function gzipSize(content) {
  * Measure every file in `filePaths` and return per-file sizes + total.
  * Each file is read exactly once.
  *
+ * Security guards applied before reading each file:
+ *  1. Symlinks are skipped — a symlink in dist/assets could point outside the
+ *     directory (e.g. /etc/passwd) or to a device file, both of which are
+ *     foot-guns in a CI environment.
+ *  2. Files larger than MAX_RAW_FILE_BYTES are skipped with a warning — this
+ *     prevents memory exhaustion from unexpectedly large artifacts that somehow
+ *     ended up in the assets directory.
+ *
  * @param {string[]} filePaths
- * @returns {{ sizes: Array<{name: string; gzip: number}>; total: number }}
+ * @returns {{ sizes: Array<{name: string; gzip: number}>; total: number; warnings: string[] }}
  */
 function measureFiles(filePaths) {
   let total = 0;
-  const sizes = filePaths.map((filePath) => {
+  /** @type {string[]} */
+  const warnings = [];
+  /** @type {Array<{name: string; gzip: number}>} */
+  const sizes = [];
+
+  for (const filePath of filePaths) {
+    const stat = fs.lstatSync(filePath);
+
+    if (stat.isSymbolicLink()) {
+      warnings.push(
+        `check-bundle: skipping symlink ${path.basename(filePath)}`
+      );
+      continue;
+    }
+
+    if (stat.size > MAX_RAW_FILE_BYTES) {
+      warnings.push(
+        `check-bundle: skipping oversized file ${path.basename(filePath)} ` +
+          `(${stat.size} B > ${MAX_RAW_FILE_BYTES} B limit)`
+      );
+      continue;
+    }
+
     const gzip = gzipSize(fs.readFileSync(filePath));
     total += gzip;
-    return { name: path.basename(filePath), gzip };
-  });
-  return { sizes, total };
+    sizes.push({ name: path.basename(filePath), gzip });
+  }
+
+  return { sizes, total, warnings };
 }
 
 /**
@@ -97,6 +137,11 @@ function checkBundles(distDir) {
     entries.filter((f) => f.endsWith(".css")).map(toAbsolute)
   );
 
+  // Collect any security-related skip warnings so they appear in CI logs.
+  const allWarnings = [...js.warnings, ...css.warnings];
+  const warningBlock =
+    allWarnings.length > 0 ? allWarnings.join("\n") + "\n" : "";
+
   // Summary lines printed on both pass and fail for visibility.
   const summaryLines = [
     ...js.sizes.map((f) => `  JS  ${f.name}: ${f.gzip} B (gzip)`),
@@ -114,19 +159,19 @@ function checkBundles(distDir) {
   if (violations.length > 0) {
     return {
       ok: false,
-      stdout: "",
+      stdout: warningBlock,
       stderr: `check-bundle FAILED\n${violations.join("\n")}\n\n${summaryLines}\n`,
     };
   }
 
   return {
     ok: true,
-    stdout: `check-bundle PASSED\n${summaryLines}\n`,
+    stdout: `${warningBlock}check-bundle PASSED\n${summaryLines}\n`,
     stderr: "",
   };
 }
 
-module.exports = { checkBundles, JS_BUDGET, CSS_BUDGET };
+module.exports = { checkBundles, JS_BUDGET, CSS_BUDGET, MAX_RAW_FILE_BYTES };
 
 // ---------------------------------------------------------------------------
 // CLI entry point
