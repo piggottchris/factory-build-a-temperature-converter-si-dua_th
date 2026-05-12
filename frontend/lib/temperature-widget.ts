@@ -5,12 +5,17 @@
  * element.  The widget uses the `parseTemperature`, `celsiusToFahrenheit`,
  * `celsiusToKelvin`, and `formatNumber` helpers from `./convert`.
  *
- * Accessibility features:
+ * Accessibility / UX features:
  *  - <label> bound to the input via htmlFor / id.
+ *  - autocapitalize="none" and spellcheck="false" prevent mobile keyboards
+ *    from capitalising or underlining numeric/minus/decimal input.
  *  - aria-invalid toggled on the input for INVALID states.
  *  - aria-describedby wires the input to the visible error paragraph.
- *  - #sr-result (role="status", aria-live="polite") announces valid results.
- *  - #sr-error  (role="alert",  aria-live="assertive") announces errors.
+ *  - #sr-result (role="status") announces valid results; aria-live="polite"
+ *    is implicit in role=status — the explicit attribute is omitted to avoid
+ *    redundancy that can cause double-announcement in some ATs.
+ *  - #sr-error  (role="alert")  announces errors; aria-live="assertive"
+ *    is implicit in role=alert — same rationale.
  *  - Both SR regions are updated via a 400 ms debounce so rapid keystrokes do
  *    not interrupt screen-reader users mid-word.
  *
@@ -50,24 +55,24 @@ export function mountTemperatureWidget(container: HTMLElement): () => void {
             type="text"
             inputmode="decimal"
             autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
             maxlength="${MAX_LENGTH}"
             aria-describedby="temp-error"
           />
         </div>
-        <p id="temp-result" role="status" aria-live="polite" aria-atomic="true"></p>
-        <p id="temp-error" aria-live="assertive" aria-atomic="true"></p>
+        <p id="temp-result" role="status" aria-atomic="true"></p>
+        <p id="temp-error" aria-atomic="true"></p>
       </form>
       <div
         id="sr-result"
         role="status"
-        aria-live="polite"
         aria-atomic="true"
         style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"
       ></div>
       <div
         id="sr-error"
         role="alert"
-        aria-live="assertive"
         aria-atomic="true"
         style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"
       ></div>
