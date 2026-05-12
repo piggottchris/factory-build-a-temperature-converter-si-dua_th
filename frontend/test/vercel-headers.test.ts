@@ -137,21 +137,26 @@ describe("vercel.json — Permissions-Policy", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Completeness guard — all five headers must appear together
+// Completeness guard — all five contract headers must appear together
+// (The three hardening headers added in Security Hardening pass are tested
+//  separately below. This block guards only the original five contract headers.)
 // ---------------------------------------------------------------------------
-describe("vercel.json — all five headers present", () => {
-  it("includes every required security header", () => {
+describe("vercel.json — all five contract headers present", () => {
+  it("includes every required contract header", () => {
     const missing = Object.keys(REQUIRED_HEADERS).filter(
       (k) => !allHeaders.has(k),
     );
-    expect(missing).toEqual([]);
+    expect(
+      missing,
+      `Missing contract headers: ${missing.join(", ")}`,
+    ).toEqual([]);
   });
 
-  it("no required header has an empty value", () => {
+  it("no contract header has an empty or wrong value", () => {
     for (const [key, expected] of Object.entries(REQUIRED_HEADERS)) {
       expect(
         allHeaders.get(key),
-        `${key} must match required value`,
+        `${key} must match exact contract value`,
       ).toBe(expected);
     }
   });
@@ -162,36 +167,54 @@ describe("vercel.json — all five headers present", () => {
 // ---------------------------------------------------------------------------
 describe("vercel.json — Strict-Transport-Security", () => {
   it("is present", () => {
-    expect(allHeaders.has("Strict-Transport-Security")).toBe(true);
+    expect(
+      allHeaders.has("Strict-Transport-Security"),
+      "Strict-Transport-Security header is missing from vercel.json",
+    ).toBe(true);
   });
 
   it("sets a long max-age with includeSubDomains and preload", () => {
     const hsts = allHeaders.get("Strict-Transport-Security") ?? "";
     // max-age must be at least 1 year (31536000 seconds) to qualify for preload list
     const match = hsts.match(/max-age=(\d+)/);
-    expect(match).not.toBeNull();
-    expect(parseInt(match![1], 10)).toBeGreaterThanOrEqual(31536000);
-    expect(hsts).toContain("includeSubDomains");
-    expect(hsts).toContain("preload");
+    expect(match, "Strict-Transport-Security must contain max-age=<seconds>").not.toBeNull();
+    expect(
+      parseInt(match![1], 10),
+      "HSTS max-age must be >= 31536000 (1 year) to qualify for browser preload list",
+    ).toBeGreaterThanOrEqual(31536000);
+    expect(hsts, "HSTS must include 'includeSubDomains'").toContain("includeSubDomains");
+    expect(hsts, "HSTS must include 'preload'").toContain("preload");
   });
 });
 
 describe("vercel.json — Cross-Origin-Opener-Policy", () => {
   it("is present", () => {
-    expect(allHeaders.has("Cross-Origin-Opener-Policy")).toBe(true);
+    expect(
+      allHeaders.has("Cross-Origin-Opener-Policy"),
+      "Cross-Origin-Opener-Policy header is missing from vercel.json",
+    ).toBe(true);
   });
 
   it("equals 'same-origin'", () => {
-    expect(allHeaders.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+    expect(
+      allHeaders.get("Cross-Origin-Opener-Policy"),
+      "Cross-Origin-Opener-Policy must be 'same-origin' to isolate the browsing context",
+    ).toBe("same-origin");
   });
 });
 
 describe("vercel.json — Cross-Origin-Resource-Policy", () => {
   it("is present", () => {
-    expect(allHeaders.has("Cross-Origin-Resource-Policy")).toBe(true);
+    expect(
+      allHeaders.has("Cross-Origin-Resource-Policy"),
+      "Cross-Origin-Resource-Policy header is missing from vercel.json",
+    ).toBe(true);
   });
 
   it("equals 'same-origin'", () => {
-    expect(allHeaders.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+    expect(
+      allHeaders.get("Cross-Origin-Resource-Policy"),
+      "Cross-Origin-Resource-Policy must be 'same-origin' to block cross-origin no-CORS reads",
+    ).toBe("same-origin");
   });
 });

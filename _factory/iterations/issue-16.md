@@ -21,3 +21,22 @@
   - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file, created)
 
 - Tests: before: 75 frontend / 2 backend passing, 0 failing. After: 81 frontend / 2 backend passing, 0 failing.
+
+## Iteration 2 — UX/Product Polish: update docs and test error messages to reflect 8-header reality
+
+- Critique: Three developer UX problems after Pass 1:
+  1. `PRODUCT_ACCEPTANCE.md` was written for 5 headers and never updated after the Security Hardening pass added 3 more. It still said "all five required security headers" in the Feature section, the Primary User Journey, and the Static validation prose — misleading to any maintainer reading the doc. All 7 success-criteria checkboxes were unchecked despite the feature being fully implemented.
+  2. The test file had a `describe("vercel.json — all five headers present", ...)` block that referred to "five" headers and "every required security header" — ambiguous now that 8 headers exist and the block deliberately tests only the original 5 contract headers.
+  3. The hardening-header "is present" tests produced unhelpful failure messages (`expected false to be true`) with no indication of which header was missing or why it matters.
+
+- Change:
+  1. Updated `PRODUCT_ACCEPTANCE.md`: changed "five" to "eight" throughout prose; split the requirements table into two sections (contract headers vs. hardening headers) with a rationale column for the new three; ticked all 7 success-criteria checkboxes (all criteria are now satisfied).
+  2. Renamed the test describe block to `"all five contract headers present"` and added a clarifying comment explaining the hardening headers are covered by separate describe blocks below.
+  3. Added meaningful failure messages to all `expect()` calls in the three hardening-header describe blocks, so a future regression immediately names the missing header and explains the security intent.
+
+- Files touched:
+  - `/sandbox/work/issue-16/PRODUCT_ACCEPTANCE.md`
+  - `/sandbox/work/issue-16/frontend/test/vercel-headers.test.ts`
+  - `/sandbox/work/issue-16/_factory/iterations/issue-16.md` (this file)
+
+- Tests: before: 81 frontend / 2 backend passing, 0 failing. After: 81 frontend / 2 backend passing, 0 failing.
