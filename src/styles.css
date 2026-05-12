@@ -1,0 +1,151 @@
+/* ==========================================================================
+   Temperature Converter — base styles (issue #4)
+   Responsive rules for ≤480 px are in issue #5.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Reset / base
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Page
+   -------------------------------------------------------------------------- */
+body {
+  background-color: #f5f5f7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1d1d1f;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+/* --------------------------------------------------------------------------
+   Card
+   -------------------------------------------------------------------------- */
+.card {
+  background-color: #ffffff;
+  max-width: 420px;
+  width: 100%;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.08),
+    0 4px 16px rgb(0 0 0 / 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* --------------------------------------------------------------------------
+   Heading
+   -------------------------------------------------------------------------- */
+.card__heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #1d1d1f;
+}
+
+/* --------------------------------------------------------------------------
+   Input field
+   -------------------------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #3a3a3c;
+}
+
+.field__input {
+  font-size: 1rem; /* ≥ 16 px — prevents iOS zoom */
+  font-family: inherit;
+  color: inherit;
+  background-color: #f5f5f7;
+  border: 1.5px solid #d1d1d6;
+  border-radius: 8px;
+  padding-block: 14px;
+  padding-inline: 14px;
+  min-height: 48px;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+}
+
+.field__input:focus {
+  outline: none;
+  border-color: #0071e3;
+  box-shadow: 0 0 0 3px rgb(0 113 227 / 0.2);
+}
+
+.field__helper {
+  font-size: 0.8125rem;
+  color: #6e6e73;
+  line-height: 1.4;
+}
+
+.field__error {
+  font-size: 0.8125rem;
+  color: #ff3b30;
+  line-height: 1.4;
+}
+
+/* Error state — set by JS in issue #7 */
+.field__input[aria-invalid="true"] {
+  border-color: #ff3b30;
+}
+
+/* --------------------------------------------------------------------------
+   Empty-state hint
+   -------------------------------------------------------------------------- */
+.hint {
+  font-size: 0.875rem;
+  color: #6e6e73;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Results
+   -------------------------------------------------------------------------- */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid #f0f0f5;
+  padding-top: 16px;
+}
+
+.results__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.results__label {
+  font-size: 0.875rem;
+  color: #3a3a3c;
+  font-weight: 400;
+}
+
+.results__value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1d1d1f;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  word-break: break-word;
+}
